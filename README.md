@@ -85,6 +85,10 @@ secondary unless you explicitly ask to **summarize** or **explain** the
 roadmap. If the environment cannot display local HTML, the agent provides a
 direct file link instead.
 
+The generated HTML lives in the hidden `.roadmap` directory. Agents use the
+fixed path `.roadmap/roadmap.html` directly because ordinary workspace searches
+often omit hidden directories.
+
 The readable views are also available directly in `ROADMAP.md` and
 `.roadmap/roadmap.html`. These are generated views; `.roadmap/roadmap.json`
 remains the canonical state.

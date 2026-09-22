@@ -37,10 +37,14 @@ required approval step because normal sync is validated and atomic.
 When a user asks to show, see, view, or open the roadmap:
 
 1. Run `npx rmp sync` so the generated view is current.
-2. Open `.roadmap/roadmap.html` in Codex using the file or artifact viewer.
-3. Treat the visual roadmap as the primary response. Do not replace it with a
+2. Use the exact repository-relative path `.roadmap/roadmap.html`, including the
+   leading-dot directory. Do not use ordinary workspace file listings or search
+   by filename; those commonly omit hidden directories.
+3. Verify that exact path exists, then open it in Codex using the file or
+   artifact viewer.
+4. Treat the visual roadmap as the primary response. Do not replace it with a
    prose summary unless the user asks for a summary.
-4. If the environment cannot open HTML artifacts, provide a direct clickable
+5. If the environment cannot open HTML artifacts, provide a direct clickable
    path to `.roadmap/roadmap.html` and briefly explain the limitation.
 
 When a user asks to summarize or explain the roadmap, respond in chat and open
