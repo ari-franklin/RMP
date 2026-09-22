@@ -36,11 +36,14 @@ export interface RoadmapViewModel {
 }
 
 const horizonOrder = { now: 0, next: 1, later: 2 } as const;
+const kindOrder = { outcome: 0, deliverable: 1, milestone: 2, release: 3 } as const;
 
 function stableItems(items: RoadmapItem[]): RoadmapItem[] {
   return [...items].sort(
     (left, right) =>
-      horizonOrder[left.horizon] - horizonOrder[right.horizon] || left.id.localeCompare(right.id),
+      horizonOrder[left.horizon] - horizonOrder[right.horizon] ||
+      kindOrder[left.kind] - kindOrder[right.kind] ||
+      left.id.localeCompare(right.id),
   );
 }
 
@@ -76,11 +79,23 @@ function projection(roadmap: Roadmap, items: RoadmapItem[]): RoadmapProjection {
 
 export function buildRoadmapViewModel(roadmap: Roadmap): RoadmapViewModel {
   const releases = roadmap.items.filter((entry) => entry.kind === 'release');
+  const hasMeasuredOutcomes = roadmap.items.some(
+    (entry) => entry.kind === 'outcome' && entry.signal !== undefined,
+  );
+  const hasMilestones = roadmap.items.some((entry) => entry.kind === 'milestone');
+  const useCase =
+    releases.length > 0
+      ? 'release'
+      : hasMeasuredOutcomes
+        ? 'outcomes'
+        : hasMilestones
+          ? 'milestones'
+          : 'delivery';
   const format = selectFormat({
     audience: 'team',
     horizon: 'near-term',
     decision: 'sequence-work',
-    useCase: releases.length > 0 ? 'release' : 'delivery',
+    useCase,
     evidenceStrength: roadmap.evidence.length > 0 ? 'medium' : 'low',
     commitment: releases.some((entry) => entry.commitment === 'committed')
       ? 'committed'
@@ -90,11 +105,9 @@ export function buildRoadmapViewModel(roadmap: Roadmap): RoadmapViewModel {
     schedulePrecision: releases.some((entry) => entry.schedule?.precision === 'exact')
       ? 'exact'
       : 'none',
-    hasMeasuredOutcomes: roadmap.items.some(
-      (entry) => entry.kind === 'outcome' && entry.signal !== undefined,
-    ),
+    hasMeasuredOutcomes,
     hasExplicitAlternatives: false,
-    hasObservableMilestones: roadmap.items.some((entry) => entry.kind === 'milestone'),
+    hasObservableMilestones: hasMilestones,
     hasDiscoveryLineage: false,
     hasPortfolioAllocations: false,
     hasPlanningWindows: releases.some((entry) => entry.schedule?.precision === 'window'),
@@ -102,6 +115,15 @@ export function buildRoadmapViewModel(roadmap: Roadmap): RoadmapViewModel {
     hasDatedScope: releases.some((entry) => entry.schedule?.precision === 'exact'),
   });
   const outcomes = roadmap.items.filter((entry) => entry.kind === 'outcome');
+  const outcomeIds = new Set(outcomes.map((entry) => entry.id));
+  const outcomeSupportIds = new Set(
+    roadmap.relationships
+      .filter((entry) => entry.type === 'supports' && outcomeIds.has(entry.to))
+      .map((entry) => entry.from),
+  );
+  const outcomeWork = roadmap.items.filter(
+    (entry) => outcomeIds.has(entry.id) || outcomeSupportIds.has(entry.id),
+  );
   const delivery = roadmap.items.filter(
     (entry) => entry.kind === 'deliverable' || entry.kind === 'milestone',
   );
@@ -113,7 +135,7 @@ export function buildRoadmapViewModel(roadmap: Roadmap): RoadmapViewModel {
     format,
     views: {
       overview: all,
-      outcome: projection(roadmap, outcomes),
+      outcome: projection(roadmap, outcomeWork),
       delivery: projection(roadmap, delivery),
       release: projection(roadmap, releases),
       dependency: { ...all, items: [] },

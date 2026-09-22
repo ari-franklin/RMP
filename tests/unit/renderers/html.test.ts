@@ -153,10 +153,32 @@ describe('renderHtml', () => {
     expect(html).toContain('id="tab-overview"');
     expect(html).toMatch(/id="tab-overview"[^>]+aria-selected="true"/);
     expect(html).toContain('id="view-overview"');
+    expect(html).toContain('data-pattern="now-next-later"');
     expect(html).toContain("showTab(typeof state.tab === 'string' ? state.tab : 'view-overview')");
     expect(html).toContain(`rmp-ui-state-v2-${String(roadmap().revision)}`);
     expect(html).toContain("event.key === 'ArrowRight'");
     expect(html.indexOf('id="roadmap-views"')).toBeLessThan(html.indexOf('id="evidence-risk"'));
+    expect(html.indexOf('id="roadmap-views"')).toBeLessThan(html.indexOf('id="strategy-frame"'));
+  });
+
+  it('opens the configured perspective while retaining all alternate views', () => {
+    const html = renderHtml(roadmap(), { defaultView: 'delivery' });
+
+    expect(html).toMatch(/id="tab-delivery"[^>]+aria-selected="true"/);
+    expect(html).toMatch(/id="tab-overview"[^>]+aria-selected="false"/);
+    expect(html).toContain("showTab(typeof state.tab === 'string' ? state.tab : 'view-delivery')");
+    expect(html).toContain('id="view-outcome"');
+    expect(html).toContain('id="view-release"');
+  });
+
+  it('renders measured outcome roadmaps as a horizon kanban', () => {
+    const state = roadmap();
+    state.items = state.items.filter((entry) => entry.kind !== 'release');
+
+    const html = renderHtml(state);
+
+    expect(html).toContain('data-pattern="outcome-lanes"');
+    expect(html).toContain('class="pattern-now-next-later horizon-grid"');
   });
 
   it('derives useful framing and renders item descriptions without empty boilerplate', () => {
@@ -180,6 +202,7 @@ describe('renderHtml', () => {
     expect(html).not.toContain('No risks are recorded.');
     expect(html).not.toContain('Repository team');
     expect(html).not.toContain('Sequence evidence-backed roadmap work');
+    expect(html).not.toContain('Local interactions only. Canonical roadmap state is unchanged.');
   });
 
   it('exposes framing, uncertainty, measures, risks, and validation needs as text', () => {
@@ -203,7 +226,7 @@ describe('renderHtml', () => {
       'Hosted synchronization',
       'Validation needs',
       'Confidence: high',
-      '<strong>Commitment:</strong> committed',
+      '<span class="commitment-label">committed</span>',
     ]) {
       expect(html).toContain(text);
     }
@@ -239,6 +262,6 @@ describe('renderHtml', () => {
     expect(html).toContain('localStorage.removeItem(UI_STATE_KEY)');
     expect(html).toContain('application/json');
     expect(html).toContain('proposalOnly: true');
-    expect(html).toContain('Canonical roadmap state is unchanged');
+    expect(html).not.toContain('Canonical roadmap state is unchanged');
   });
 });

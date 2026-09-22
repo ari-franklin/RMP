@@ -54,7 +54,7 @@ describe('renderMarkdown', () => {
     expect(first).toBe(second);
     expect(first).toContain('# Focused roadmap');
     expect(first).toContain('Revision: 3');
-    expect(first).toContain('Selected format: Now / Next / Later');
+    expect(first).toContain('Selected format: Outcome lanes');
     expect(first).toContain('## Strategic anchor');
     expect(first).toContain('## Current focus');
     expect(first).toContain('## Blockers');

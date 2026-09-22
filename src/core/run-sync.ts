@@ -193,7 +193,10 @@ export async function runSync(options: RunSyncOptions): Promise<RunSyncResult> {
     if (format === 'all' || format === 'html') {
       writes.push({
         path: '.roadmap/roadmap.html',
-        content: (options.renderHtml ?? defaultRenderHtml)(reconciled.roadmap),
+        content:
+          options.renderHtml === undefined
+            ? defaultRenderHtml(reconciled.roadmap, { defaultView: config.config.views.default })
+            : options.renderHtml(reconciled.roadmap),
       });
     }
   }
