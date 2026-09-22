@@ -264,6 +264,10 @@ describe('renderHtml', () => {
     expect(html).toContain('localStorage.removeItem(UI_STATE_KEY)');
     expect(html).toContain('application/json');
     expect(html).toContain('proposalOnly: true');
+    expect(html).toContain('IntersectionObserver');
+    expect(html).toContain('prefers-reduced-motion');
+    expect(html).toContain('cubic-bezier(.32,.72,0,1)');
+    expect(html).toContain('font-family:"Geist"');
     expect(html).not.toContain('Canonical roadmap state is unchanged');
   });
 });
