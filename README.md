@@ -61,6 +61,80 @@ After an npm release, installation becomes:
 npm install --save-dev roadmap-maintenance-protocol
 ```
 
+## Use RMP Through Your Agent
+
+Installation is the last routine maintenance step a human should perform. From
+then on, work with the roadmap in plain language through any coding agent that
+follows the repository's `AGENTS.md` instructions.
+
+### See the roadmap
+
+Ask your agent:
+
+```text
+Show me the current roadmap, including what is active, blocked, and next.
+```
+
+```text
+Open the visual roadmap and explain the decisions that need my attention.
+```
+
+The readable views are also available directly in `ROADMAP.md` and
+`.roadmap/roadmap.html`. These are generated views; `.roadmap/roadmap.json`
+remains the canonical state.
+
+### Build from the roadmap
+
+Ask for a specific item or let the agent choose the highest-priority ready
+work:
+
+```text
+Build roadmap item del-example and keep the roadmap current as you work.
+```
+
+```text
+Choose the highest-priority unblocked item in the current roadmap and implement it.
+```
+
+The agent reads the roadmap before planning, connects durable evidence to the
+item ID, performs the work, verifies it, and synchronizes RMP before finishing.
+You do not need to run `rmp sync` around the task.
+
+### Approve or reject a recommendation
+
+When evidence cannot safely make a product or strategy decision, RMP leaves an
+open recommendation. Give the agent an explicit decision and, ideally, the
+reason:
+
+```text
+Approve recommendation rec-example because we have committed to this release.
+```
+
+```text
+Reject recommendation rec-example because the customer signal is not strong enough.
+```
+
+For the MVP, approval is agent-mediated rather than a separate `rmp approve`
+CLI command. The agent must verify the recommendation ID and required approver,
+record the decision in canonical state, append an approved audit receipt when a
+transition occurs, regenerate the views, and validate the repository. It must
+not infer approval from silence or from an unrelated request.
+
+### Change the roadmap itself
+
+Roadmap design is also a deliberate human request:
+
+```text
+Add an exploratory deliverable for onboarding analytics under the adoption outcome.
+```
+
+```text
+Move del-example to later and explain the dependency impact before applying it.
+```
+
+Agents may maintain factual delivery state autonomously. New priorities,
+commitments, scope, and outcome definitions remain explicit product decisions.
+
 ## What Gets Added To `AGENTS.md`
 
 RMP keeps activation intentionally small:
@@ -100,6 +174,9 @@ RMP then:
 
 ## Commands
 
+These commands are the low-level interface used by agents, automation, and
+troubleshooting. Humans normally use the natural-language workflow above.
+
 ```text
 rmp init [--root PATH] [--non-interactive] [--accept-agents-update] [--json]
 rmp validate [--root PATH] [--json]
@@ -109,7 +186,13 @@ rmp render [--root PATH] [--format all|markdown|html] [--dry-run] [--json]
 rmp sync [--root PATH] [--format all|markdown|html] [--dry-run] [--json]
 ```
 
-`sync` collects evidence, applies authorized transitions, records receipts, validates the result, and atomically updates the selected views. `--dry-run` reports the exact changed paths without writing. `--json` emits one versioned machine-readable object and no prose.
+`sync` collects evidence, applies authorized transitions, records receipts,
+validates the result, and atomically updates the selected views. `--dry-run`
+reports the exact changed paths without writing and is intended for diagnosis,
+not routine approval. `--json` emits one versioned machine-readable object and
+no prose. The MVP does not expose `view`, `build`, or `approve` as CLI commands;
+those are human-to-agent workflows backed by repository files and the commands
+above.
 
 Exit codes are `0` for success, `1` for an operational or validation failure, and `2` for invalid command usage.
 
