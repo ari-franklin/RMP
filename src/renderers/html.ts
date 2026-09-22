@@ -320,7 +320,14 @@ export function renderHtml(roadmap: Roadmap, options: HtmlRenderOptions = {}): s
       if (view === 'overview') content = pattern(selected, projection, view);
       else if (view === 'dependency') content = relationshipList(roadmap);
       else if (view === 'history') content = evidenceList(roadmap);
-      else content = pattern(selected, projection, view);
+      else if (view === 'outcome') content = pattern('outcome-lanes', projection, view);
+      else if (view === 'release') {
+        content = pattern(
+          selected === 'gantt-release' ? selected : 'now-next-later',
+          projection,
+          view,
+        );
+      } else content = pattern('now-next-later', projection, view);
       return `<section id="${id}" class="tabpanel" role="tabpanel" aria-labelledby="tab-${view}"${view === defaultView ? '' : ' hidden'}><h3>${label}</h3>${content}</section>`;
     })
     .join('');

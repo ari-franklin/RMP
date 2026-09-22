@@ -169,6 +169,8 @@ describe('renderHtml', () => {
     expect(html).toContain("showTab(typeof state.tab === 'string' ? state.tab : 'view-delivery')");
     expect(html).toContain('id="view-outcome"');
     expect(html).toContain('id="view-release"');
+    expect(html).toMatch(/id="view-outcome"[\s\S]+?data-pattern="outcome-lanes"/);
+    expect(html).toMatch(/id="view-delivery"[\s\S]+?data-pattern="now-next-later"/);
   });
 
   it('renders measured outcome roadmaps as a horizon kanban', () => {
