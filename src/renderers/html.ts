@@ -48,11 +48,25 @@ function stringList(value: unknown): string[] {
 
 function strategyFrame(roadmap: Roadmap): StrategyFrame {
   const strategy = roadmap.extensions.strategy ?? {};
+  const outcomes = roadmap.items.filter((item) => item.kind === 'outcome');
+  const anchor = outcomes.find((item) => item.status === 'active') ?? outcomes[0];
+  const statusCounts = new Map<string, number>();
+  for (const item of roadmap.items) {
+    statusCounts.set(item.status, (statusCounts.get(item.status) ?? 0) + 1);
+  }
+  const baseline = [...statusCounts.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([status, count]) => `${String(count)} ${status}`)
+    .join(' · ');
   return {
     anchor:
-      typeof strategy.anchor === 'string' ? strategy.anchor : 'No strategic anchor is recorded.',
+      typeof strategy.anchor === 'string'
+        ? strategy.anchor
+        : (anchor?.title ?? 'Roadmap intent has not been defined.'),
     baseline:
-      typeof strategy.baseline === 'string' ? strategy.baseline : 'No baseline is recorded.',
+      typeof strategy.baseline === 'string'
+        ? strategy.baseline
+        : `${String(roadmap.items.length)} roadmap items · ${baseline || 'no delivery state'}`,
     risks: stringList(strategy.risks),
     assumptions: stringList(strategy.assumptions),
     openQuestions: stringList(strategy.openQuestions),
@@ -70,33 +84,33 @@ function itemCard(item: ProjectedItem): string {
   const signal = item.signal;
   const measure =
     signal === undefined
-      ? 'No measure recorded'
-      : `${escapeHtml(signal.metric)}: target ${String(signal.target)} ${escapeHtml(signal.unit)}`;
+      ? ''
+      : `<p><strong>Measure:</strong> ${escapeHtml(signal.metric)}: target ${String(signal.target)} ${escapeHtml(signal.unit)}</p>`;
+  const description =
+    item.description === undefined
+      ? ''
+      : `<p class="item-description">${escapeHtml(item.description)}</p>`;
   const schedule =
     item.scheduleLabel === undefined
       ? ''
       : `<p class="schedule">${escapeHtml(item.scheduleLabel)}</p>`;
   return `<article class="roadmap-card commitment-${item.commitment} status-${item.status}" data-item data-status="${item.status}" data-horizon="${item.horizon}">
     <div class="card-heading"><h4>${escapeHtml(item.title)}</h4><span class="status-label">${escapeHtml(item.status)}</span></div>
-    <p class="item-id">${escapeHtml(item.id)}</p>
+    <p class="item-id">${escapeHtml(item.kind)} · ${escapeHtml(item.id)}</p>${description}
     <p><strong>Commitment:</strong> ${escapeHtml(item.commitment)} · <strong>Confidence:</strong> ${escapeHtml(item.confidence)}</p>
-    <p><strong>Measure:</strong> ${measure}</p>${schedule}
+    ${measure}${schedule}
   </article>`;
 }
 
-function nowNextLater(items: ProjectedItem[]): string {
+function nowNextLater(items: ProjectedItem[], namespace: string): string {
   return `<div class="pattern-now-next-later horizon-grid">${(['now', 'next', 'later'] as const)
-    .map(
-      (horizon) => `<section class="lane" aria-labelledby="lane-${horizon}">
-        <h3 id="lane-${horizon}">${horizon.charAt(0).toUpperCase()}${horizon.slice(1)}</h3>
-        ${
-          items
-            .filter((item) => item.horizon === horizon)
-            .map(itemCard)
-            .join('') || '<p>No items.</p>'
-        }
-      </section>`,
-    )
+    .map((horizon) => {
+      const laneItems = items.filter((item) => item.horizon === horizon);
+      return `<section class="lane" aria-labelledby="lane-${namespace}-${horizon}">
+        <h3 id="lane-${namespace}-${horizon}">${horizon.charAt(0).toUpperCase()}${horizon.slice(1)} <span class="lane-count">${String(laneItems.length)}</span></h3>
+        ${laneItems.map(itemCard).join('') || '<p class="muted">No work scheduled.</p>'}
+      </section>`;
+    })
     .join('')}</div>`;
 }
 
@@ -160,13 +174,17 @@ function gantt(items: ProjectedItem[]): string {
   return `<div class="pattern-gantt-release timeline">${entries || '<p>No releases are defined.</p>'}</div>`;
 }
 
-function pattern(format: RoadmapFormat, projection: RoadmapProjection): string {
+function pattern(
+  format: RoadmapFormat,
+  projection: RoadmapProjection,
+  namespace = 'roadmap',
+): string {
   const content = (() => {
     switch (format) {
       case 'outcome-lanes':
         return outcomeLanes(projection.items);
       case 'now-next-later':
-        return nowNextLater(projection.items);
+        return nowNextLater(projection.items, namespace);
       case 'strategy-choice':
         return matrix(projection.items);
       case 'milestones':
@@ -206,13 +224,17 @@ function evidenceList(roadmap: Roadmap): string {
     .join('');
 }
 
+function optionalListSection(title: string, values: string[]): string {
+  return values.length === 0 ? '' : `<section><h3>${title}</h3>${list(values, '')}</section>`;
+}
+
 function styles(): string {
-  return `:root{--bg:#f5f7f8;--surface:#fff;--text:#182026;--muted:#59636d;--line:#cfd6dc;--green:#176b45;--amber:#8a5a00;--blue:#285f9e;--red:#9b2c2c}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}main{padding:24px}.wrap{max-width:1180px;margin:auto}h1,h2,h3,h4{line-height:1.2;letter-spacing:0}.metadata,.muted,.pattern-note,.item-id{color:var(--muted)}.strategy-grid,.decision-grid,.evidence-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.strategy-grid>div,.decision-grid>section{border-left:3px solid var(--line);padding-left:12px}.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:16px 0}.toolbar label{display:grid;gap:4px}.toolbar button,.toolbar select,.tabs button{font:inherit}.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}.tabs button{border:0;border-bottom:3px solid transparent;background:transparent;padding:10px 12px;white-space:nowrap}.tabs button[aria-selected="true"]{border-color:var(--blue);font-weight:700}.tabs button:focus-visible,.toolbar button:focus-visible,.toolbar select:focus-visible,summary:focus-visible{outline:3px solid #f0a929;outline-offset:2px}.tabpanel{padding:18px 0}.tabpanel[hidden]{display:none}.horizon-grid,.portfolio-grid,.quarter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.lane-stack,.dashboard-rows{display:grid;gap:12px}.roadmap-card{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--amber);border-radius:7px;padding:12px;margin:10px 0;overflow-wrap:anywhere;break-inside:avoid}.commitment-committed{border-left-color:var(--green)}.commitment-exploratory{border-left-style:dashed;border-left-color:var(--blue)}.status-blocked{outline:2px solid var(--red)}.card-heading{display:flex;justify-content:space-between;gap:8px}.card-heading h4{margin:0}.status-label,.badge{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px 7px;font-size:.78rem;font-weight:700}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;background:var(--surface)}th,td{border:1px solid var(--line);padding:10px;text-align:left}.marker-path{border-left:3px solid var(--line);padding-left:24px}.tree [role="treeitem"]{margin-left:clamp(0px,4vw,48px)}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.metrics div{background:var(--surface);border:1px solid var(--line);padding:12px}.metrics dd{font-size:1.5rem;font-weight:800;margin:0}.timeline{display:grid;gap:10px}.timeline-row{display:grid;grid-template-columns:minmax(130px,1fr) 2fr;gap:10px;align-items:center}.timeline-bar,.timeline-marker{display:block;padding:8px;border:1px solid var(--green);background:#e8f5ee}.timeline-marker{border-style:dashed;border-color:var(--amber);background:#fff7df}.legend{display:flex;flex-wrap:wrap;gap:8px}.legend span{border:1px solid var(--line);padding:4px 8px}.evidence-entry{background:var(--surface);border:1px solid var(--line);padding:10px;margin:8px 0}.notice{border:1px solid var(--blue);padding:10px;background:#eef5fd}.download-link{position:absolute;left:-10000px}@media (max-width:760px){main{padding:14px}.strategy-grid,.decision-grid,.evidence-grid,.horizon-grid,.portfolio-grid,.quarter-grid,.metrics{grid-template-columns:1fr}.timeline-row{grid-template-columns:1fr}.card-heading{display:block}.tabs{scrollbar-width:thin}}@media print{body{background:#fff}main{padding:0}.toolbar,.tabs{display:none}.tabpanel[hidden]{display:block}.roadmap-card,.evidence-entry{break-inside:avoid}.tabpanel{page-break-before:auto}}`;
+  return `:root{--bg:#f5f7f8;--surface:#fff;--text:#182026;--muted:#59636d;--line:#cfd6dc;--green:#176b45;--amber:#8a5a00;--blue:#285f9e;--red:#9b2c2c}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}main{padding:24px}.wrap{max-width:1180px;margin:auto}h1,h2,h3,h4{line-height:1.2;letter-spacing:0}.metadata,.muted,.pattern-note,.item-id,.lane-count{color:var(--muted)}.strategy-grid,.decision-grid,.evidence-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.strategy-grid>div,.decision-grid>section{border-left:3px solid var(--line);padding-left:12px}.rendering-notes{margin:14px 0;color:var(--muted)}.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:16px 0}.toolbar label{display:grid;gap:4px}.toolbar button,.toolbar select,.tabs button{font:inherit}.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}.tabs button{border:0;border-bottom:3px solid transparent;background:transparent;padding:10px 12px;white-space:nowrap}.tabs button[aria-selected="true"]{border-color:var(--blue);font-weight:700}.tabs button:focus-visible,.toolbar button:focus-visible,.toolbar select:focus-visible,summary:focus-visible{outline:3px solid #f0a929;outline-offset:2px}.tabpanel{padding:18px 0}.tabpanel[hidden]{display:none}.horizon-grid,.portfolio-grid,.quarter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.lane-stack,.dashboard-rows{display:grid;gap:12px}.lane-count{font-size:.8rem;font-weight:600}.roadmap-card{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--amber);border-radius:7px;padding:14px;margin:10px 0;overflow-wrap:anywhere;break-inside:avoid}.commitment-committed{border-left-color:var(--green)}.commitment-exploratory{border-left-style:dashed;border-left-color:var(--blue)}.status-blocked{outline:2px solid var(--red)}.card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.card-heading h4{margin:0;min-width:0}.status-label,.badge{display:inline-flex;flex:0 0 auto;white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:2px 7px;font-size:.78rem;font-weight:700}.item-description{margin:.7rem 0}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;background:var(--surface)}th,td{border:1px solid var(--line);padding:10px;text-align:left}.marker-path{border-left:3px solid var(--line);padding-left:24px}.tree [role="treeitem"]{margin-left:clamp(0px,4vw,48px)}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.metrics div{background:var(--surface);border:1px solid var(--line);padding:12px}.metrics dd{font-size:1.5rem;font-weight:800;margin:0}.timeline{display:grid;gap:10px}.timeline-row{display:grid;grid-template-columns:minmax(130px,1fr) 2fr;gap:10px;align-items:center}.timeline-bar,.timeline-marker{display:block;padding:8px;border:1px solid var(--green);background:#e8f5ee}.timeline-marker{border-style:dashed;border-color:var(--amber);background:#fff7df}.legend{display:flex;flex-wrap:wrap;gap:8px}.legend span{border:1px solid var(--line);padding:4px 8px}.evidence-entry{background:var(--surface);border:1px solid var(--line);padding:10px;margin:8px 0}.notice{border:1px solid var(--blue);padding:10px;background:#eef5fd}.download-link{position:absolute;left:-10000px}@media (max-width:760px){main{padding:14px}.strategy-grid,.decision-grid,.evidence-grid,.horizon-grid,.portfolio-grid,.quarter-grid,.metrics{grid-template-columns:1fr}.timeline-row{grid-template-columns:1fr}.tabs{scrollbar-width:thin}}@media print{body{background:#fff}main{padding:0}.toolbar,.tabs{display:none}.tabpanel[hidden]{display:block}.roadmap-card,.evidence-entry{break-inside:avoid}.tabpanel{page-break-before:auto}}`;
 }
 
 function script(revision: number): string {
   return `(() => {
-  const UI_STATE_KEY = 'rmp-ui-state-${String(revision)}';
+  const UI_STATE_KEY = 'rmp-ui-state-v2-${String(revision)}';
   const tabs = [...document.querySelectorAll('[role="tab"]')];
   const panels = [...document.querySelectorAll('[role="tabpanel"]')];
   const statusFilter = document.querySelector('[data-filter="status"]');
@@ -247,7 +269,7 @@ function script(revision: number): string {
   };
   statusFilter.addEventListener('change', applyFilters);
   horizonFilter.addEventListener('change', applyFilters);
-  document.getElementById('reset-ui').addEventListener('click', () => { clearState(); statusFilter.value = 'all'; horizonFilter.value = 'all'; showTab('view-outcome'); applyFilters(); });
+  document.getElementById('reset-ui').addEventListener('click', () => { clearState(); statusFilter.value = 'all'; horizonFilter.value = 'all'; showTab('view-overview'); applyFilters(); });
   document.getElementById('export-proposal').addEventListener('click', () => {
     const proposal = { schemaVersion: '1.0.0', roadmapRevision: ${String(revision)}, proposalOnly: true, canonicalStateChanged: false, createdAt: new Date().toISOString(), recommendations: [] };
     if (download.href.startsWith('blob:')) URL.revokeObjectURL(download.href);
@@ -257,7 +279,7 @@ function script(revision: number): string {
   const state = readState();
   if (typeof state.status === 'string') statusFilter.value = state.status;
   if (typeof state.horizon === 'string') horizonFilter.value = state.horizon;
-  showTab(typeof state.tab === 'string' ? state.tab : 'view-outcome');
+  showTab(typeof state.tab === 'string' ? state.tab : 'view-overview');
   applyFilters();
 })();`;
 }
@@ -266,16 +288,11 @@ export function renderHtml(roadmap: Roadmap, options: HtmlRenderOptions = {}): s
   const model = buildRoadmapViewModel(roadmap);
   const selected = options.format ?? model.format.selected;
   const frame = strategyFrame(roadmap);
-  const audience = options.audience ?? 'Repository team';
   const horizon = options.horizon ?? 'Now / Next / Later';
-  const decision = options.decision ?? 'Sequence evidence-backed roadmap work';
   const rationale =
     options.format === undefined ? model.format.rationale : patternDescriptions[options.format];
-  const validationNeeds =
-    model.validationNeeds.length === 0
-      ? ['No format-specific validation gaps.']
-      : model.validationNeeds;
   const tabs = [
+    ['overview', 'Overview', 'view-overview'],
     ['outcome', 'Outcomes', 'view-outcome'],
     ['delivery', 'Delivery', 'view-delivery'],
     ['release', 'Releases', 'view-release'],
@@ -286,9 +303,10 @@ export function renderHtml(roadmap: Roadmap, options: HtmlRenderOptions = {}): s
     .map(([view, label, id], index) => {
       const projection = model.views[view];
       let content: string;
-      if (view === 'dependency') content = relationshipList(roadmap);
+      if (view === 'overview') content = pattern(selected, projection, view);
+      else if (view === 'dependency') content = relationshipList(roadmap);
       else if (view === 'history') content = evidenceList(roadmap);
-      else content = pattern(selected, projection);
+      else content = pattern(selected, projection, view);
       return `<section id="${id}" class="tabpanel" role="tabpanel" aria-labelledby="tab-${view}"${index === 0 ? '' : ' hidden'}><h3>${label}</h3>${content}</section>`;
     })
     .join('');
@@ -296,22 +314,46 @@ export function renderHtml(roadmap: Roadmap, options: HtmlRenderOptions = {}): s
     '<',
     '\\u003c',
   );
+  const decisionSections = [
+    optionalListSection('Next actions', frame.nextActions),
+    optionalListSection('Deferrals', frame.deferrals),
+    optionalListSection('Validation needs', model.validationNeeds),
+    optionalListSection('Open questions', frame.openQuestions),
+  ].join('');
+  const measures = roadmap.items.flatMap((item: RoadmapItem) =>
+    item.signal === undefined
+      ? []
+      : [`${item.signal.metric}: target ${String(item.signal.target)} ${item.signal.unit}`],
+  );
+  const evidenceSections = [
+    roadmap.evidence.length === 0
+      ? ''
+      : `<section><h3>Evidence</h3>${evidenceList(roadmap)}</section>`,
+    optionalListSection('Measures', measures),
+    optionalListSection('Risks', frame.risks),
+    optionalListSection('Assumptions', frame.assumptions),
+    roadmap.relationships.length === 0
+      ? ''
+      : `<section><h3>Dependencies</h3>${relationshipList(roadmap)}</section>`,
+  ].join('');
+  const activeCount = roadmap.items.filter((item) => item.status === 'active').length;
+  const proposedCount = roadmap.items.filter((item) => item.status === 'proposed').length;
+  const metadata = [
+    `${String(activeCount)} active`,
+    ...(proposedCount === 0 ? [] : [`${String(proposedCount)} proposed`]),
+    horizon,
+    ...(options.audience === undefined ? [] : [`Audience: ${options.audience}`]),
+    ...(options.decision === undefined ? [] : [`Decision: ${options.decision}`]),
+  ];
 
   return `<!doctype html>
 <html lang="en" data-revision="${String(roadmap.revision)}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(roadmap.title)}</title><style>${styles()}</style></head>
 <body><main><div class="wrap">
-  <header><p class="muted">Roadmap revision ${String(model.revision)} · Schema ${escapeHtml(model.schemaVersion)}</p><h1>${escapeHtml(model.title)}</h1><p class="metadata"><strong>Audience:</strong> ${escapeHtml(audience)} · <strong>Horizon:</strong> ${escapeHtml(horizon)} · <strong>Decision:</strong> ${escapeHtml(decision)}</p></header>
-  <section aria-labelledby="strategy-frame"><h2 id="strategy-frame">Strategy frame</h2><div class="strategy-grid"><div><h3>Strategic anchor</h3><p>${escapeHtml(frame.anchor)}</p></div><div><h3>Baseline</h3><p>${escapeHtml(frame.baseline)}</p></div></div><p><strong>Selected format:</strong> ${escapeHtml(formatLabel(selected))}</p><p><strong>Rationale:</strong> ${escapeHtml(rationale)}</p><div class="legend" aria-label="Commitment and confidence legend"><span>Committed</span><span>Directional bet</span><span>Exploratory option</span><span>Blocked</span><span>Confidence: high / medium / low</span></div></section>
+  <header><p class="muted">Roadmap revision ${String(model.revision)} · Schema ${escapeHtml(model.schemaVersion)}</p><h1>${escapeHtml(model.title)}</h1><p class="metadata">${metadata.map(escapeHtml).join(' · ')}</p></header>
+  <section aria-labelledby="strategy-frame"><h2 id="strategy-frame">Strategy frame</h2><div class="strategy-grid"><div><h3>Strategic anchor</h3><p>${escapeHtml(frame.anchor)}</p></div><div><h3>Current state</h3><p>${escapeHtml(frame.baseline)}</p></div></div><details class="rendering-notes"><summary>View design</summary><p><strong>Format:</strong> ${escapeHtml(formatLabel(selected))}</p><p>${escapeHtml(rationale)}</p></details><div class="legend" aria-label="Commitment and confidence legend"><span>Committed</span><span>Directional bet</span><span>Exploratory option</span><span>Blocked</span><span>Confidence: high / medium / low</span></div></section>
   <section id="roadmap-views" aria-labelledby="roadmap-heading"><h2 id="roadmap-heading">Roadmap visualization</h2><div class="toolbar"><label>Filter by status<select aria-label="Filter by status" data-filter="status"><option value="all">All statuses</option><option value="active">Active</option><option value="blocked">Blocked</option><option value="completed">Completed</option><option value="proposed">Proposed</option></select></label><label>Filter by horizon<select aria-label="Filter by horizon" data-filter="horizon"><option value="all">All horizons</option><option value="now">Now</option><option value="next">Next</option><option value="later">Later</option></select></label><button id="reset-ui" type="button">Reset local view</button><button id="export-proposal" type="button">Export recommendation proposal</button><a id="proposal-download" class="download-link" download="roadmap-proposal.json">Download proposal</a></div><p class="notice">Local interactions only. Canonical roadmap state is unchanged.</p><div class="tabs" role="tablist" aria-label="Roadmap views">${tabs.map(([view, label, id], index) => `<button id="tab-${view}" type="button" role="tab" aria-controls="${id}" aria-selected="${String(index === 0)}" tabindex="${index === 0 ? '0' : '-1'}">${label}</button>`).join('')}</div>${panels}</section>
-  <section aria-labelledby="decision-summary"><h2 id="decision-summary">Decision summary</h2><div class="decision-grid"><section><h3>Next actions</h3>${list(frame.nextActions, 'No next actions are recorded.')}</section><section><h3>Deferrals</h3>${list(frame.deferrals, 'No deferrals are recorded.')}</section><section><h3>Validation needs</h3>${list(validationNeeds, 'No validation needs are recorded.')}</section><section><h3>Open questions</h3>${list(frame.openQuestions, 'No open questions are recorded.')}</section></div></section>
-  <section id="evidence-risk" aria-labelledby="evidence-risk-heading"><h2 id="evidence-risk-heading">Evidence and risk</h2><div class="evidence-grid"><section><h3>Evidence</h3>${evidenceList(roadmap)}</section><section><h3>Measures</h3>${list(
-    roadmap.items.flatMap((item: RoadmapItem) =>
-      item.signal === undefined
-        ? []
-        : [`${item.signal.metric}: target ${String(item.signal.target)} ${item.signal.unit}`],
-    ),
-    'No measures are recorded.',
-  )}</section><section><h3>Risks</h3>${list(frame.risks, 'No risks are recorded.')}</section><section><h3>Assumptions</h3>${list(frame.assumptions, 'No assumptions are recorded.')}</section><section><h3>Dependencies</h3>${relationshipList(roadmap)}</section></div></section>
+  ${decisionSections === '' ? '' : `<section aria-labelledby="decision-summary"><h2 id="decision-summary">Decision summary</h2><div class="decision-grid">${decisionSections}</div></section>`}
+  ${evidenceSections === '' ? '' : `<section id="evidence-risk" aria-labelledby="evidence-risk-heading"><h2 id="evidence-risk-heading">Evidence and context</h2><div class="evidence-grid">${evidenceSections}</div></section>`}
 </div></main><script type="application/json" id="roadmap-data">${embeddedData}</script><script>${script(roadmap.revision)}</script></body></html>\n`;
 }

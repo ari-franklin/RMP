@@ -144,14 +144,42 @@ describe('renderHtml', () => {
     expect(first).toContain('data-revision="12"');
   });
 
-  it('places five keyboard-navigable views before the evidence detail', () => {
+  it('places a comprehensive overview and five drill-down views before the evidence detail', () => {
     const html = renderHtml(roadmap());
 
-    expect(html.match(/<button[^>]+role="tab"/g)).toHaveLength(5);
-    expect(html.match(/<section[^>]+role="tabpanel"/g)).toHaveLength(5);
+    expect(html.match(/<button[^>]+role="tab"/g)).toHaveLength(6);
+    expect(html.match(/<section[^>]+role="tabpanel"/g)).toHaveLength(6);
     expect(html).toContain('aria-label="Roadmap views"');
+    expect(html).toContain('id="tab-overview"');
+    expect(html).toMatch(/id="tab-overview"[^>]+aria-selected="true"/);
+    expect(html).toContain('id="view-overview"');
+    expect(html).toContain("showTab(typeof state.tab === 'string' ? state.tab : 'view-overview')");
+    expect(html).toContain(`rmp-ui-state-v2-${String(roadmap().revision)}`);
     expect(html).toContain("event.key === 'ArrowRight'");
     expect(html.indexOf('id="roadmap-views"')).toBeLessThan(html.indexOf('id="evidence-risk"'));
+  });
+
+  it('derives useful framing and renders item descriptions without empty boilerplate', () => {
+    const state = roadmap();
+    state.extensions = {};
+    const delivery = state.items[1];
+    if (delivery === undefined) throw new Error('Expected delivery fixture');
+    state.items[1] = {
+      ...delivery,
+      description: 'Deliver a reliable repository-native maintenance workflow.',
+    };
+
+    const html = renderHtml(state);
+
+    expect(html).toContain('Increase adoption');
+    expect(html).toContain('Deliver a reliable repository-native maintenance workflow.');
+    expect(html).toContain('4 active');
+    expect(html).not.toContain('No strategic anchor is recorded.');
+    expect(html).not.toContain('No baseline is recorded.');
+    expect(html).not.toContain('No next actions are recorded.');
+    expect(html).not.toContain('No risks are recorded.');
+    expect(html).not.toContain('Repository team');
+    expect(html).not.toContain('Sequence evidence-backed roadmap work');
   });
 
   it('exposes framing, uncertainty, measures, risks, and validation needs as text', () => {

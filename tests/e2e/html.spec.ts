@@ -58,7 +58,7 @@ test('supports offline keyboard navigation, filtering, reset, and proposal expor
   await page.getByRole('combobox', { name: 'Filter by status' }).selectOption('completed');
   await expect(page.locator('[role="tabpanel"]:not([hidden]) [data-item]:visible')).toHaveCount(0);
   await page.getByRole('button', { name: 'Reset local view' }).click();
-  await expect(page.locator('[role="tabpanel"]:not([hidden]) [data-item]:visible')).toHaveCount(1);
+  await expect(page.locator('[role="tabpanel"]:not([hidden]) [data-item]:visible')).toHaveCount(2);
 
   await page.getByRole('button', { name: 'Export recommendation proposal' }).click();
   const download = page.locator('a[download]');

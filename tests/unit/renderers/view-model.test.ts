@@ -81,6 +81,12 @@ describe('buildRoadmapViewModel', () => {
 
     expect(view.revision).toBe(7);
     expect(Object.values(view.views).every((projection) => projection.revision === 7)).toBe(true);
+    expect(view.views.overview.items.map((entry) => entry.id)).toEqual([
+      'del-cli',
+      'mil-schema',
+      'out-adoption',
+      'rel-october',
+    ]);
     expect(view.views.outcome.items.map((entry) => entry.id)).toEqual(['out-adoption']);
     expect(view.views.delivery.items.map((entry) => entry.id)).toEqual(['del-cli', 'mil-schema']);
     expect(view.views.release.items.map((entry) => entry.id)).toEqual(['rel-october']);

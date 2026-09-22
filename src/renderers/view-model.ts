@@ -25,6 +25,7 @@ export interface RoadmapViewModel {
   revision: number;
   format: FormatSelection;
   views: {
+    overview: RoadmapProjection;
     outcome: RoadmapProjection;
     delivery: RoadmapProjection;
     release: RoadmapProjection;
@@ -111,6 +112,7 @@ export function buildRoadmapViewModel(roadmap: Roadmap): RoadmapViewModel {
     revision: roadmap.revision,
     format,
     views: {
+      overview: all,
       outcome: projection(roadmap, outcomes),
       delivery: projection(roadmap, delivery),
       release: projection(roadmap, releases),
