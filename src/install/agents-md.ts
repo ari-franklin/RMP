@@ -27,11 +27,12 @@ interface Section {
 
 const headingPattern = /^##\s+roadmap\s+maintenance\s*$/imu;
 const requiredContent = [
-  'before finishing work that changes plans',
-  'delivery state',
-  'releases',
-  'deployments',
-  'measured outcomes',
+  'at the start of every task',
+  'run `npx rmp sync`',
+  'read `roadmap.md`',
+  'before the final response',
+  'run `npx rmp sync` again',
+  'unresolved failures',
 ];
 
 async function optionalFile(path: string): Promise<string | undefined> {
@@ -83,8 +84,10 @@ function activationClause(protocolPath: string): string {
   return [
     '## Roadmap maintenance',
     '',
-    `Follow [${displayName}](${href}) before finishing work that changes plans, delivery`,
-    'state, releases, deployments, or measured outcomes.',
+    `Follow [${displayName}](${href}). At the start of every task, run \`npx rmp sync\`,`,
+    'then read `ROADMAP.md` before planning or editing. Before the final response,',
+    'run `npx rmp sync` again after meaningful work. Stay quiet on no-op maintenance;',
+    'mention only material roadmap changes, decisions needed, or unresolved failures.',
     '',
   ].join('\n');
 }

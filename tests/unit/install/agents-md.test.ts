@@ -24,6 +24,9 @@ describe('planAgentsUpdate', () => {
     expect(plan.current).toBeUndefined();
     expect(plan.proposed).toContain('## Roadmap maintenance');
     expect(plan.proposed).toContain('[RMP.md](./RMP.md)');
+    expect(plan.proposed).toContain('At the start of every task');
+    expect(plan.proposed).toContain('Before the final response');
+    expect(plan.proposed.match(/npx rmp sync/gu)).toHaveLength(2);
     expect(plan.preview).toContain('+++ AGENTS.md');
   });
 
@@ -56,8 +59,10 @@ describe('planAgentsUpdate', () => {
       '',
       '##   ROADMAP   MAINTENANCE',
       '',
-      'Follow [protocol](./RMP.md) before finishing work that changes plans,',
-      'delivery state, releases, deployments, or measured outcomes.',
+      'Follow [protocol](./RMP.md). At the start of every task, run `npx rmp sync`,',
+      'then read `ROADMAP.md` before planning or editing. Before the final response,',
+      'run `npx rmp sync` again after meaningful work. Stay quiet on no-op maintenance;',
+      'mention only material roadmap changes, decisions needed, or unresolved failures.',
       '',
     ].join('\n');
     await writeFile(join(root, 'AGENTS.md'), content);
@@ -67,6 +72,28 @@ describe('planAgentsUpdate', () => {
 
     expect(plan.kind).toBe('configured');
     expect(plan.proposed).toBe(content);
+  });
+
+  it('repairs the legacy end-only clause with autonomous lifecycle instructions', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'rmp-agents-'));
+    const content = [
+      '# Instructions',
+      '',
+      '## Roadmap maintenance',
+      '',
+      'Follow [RMP.md](./RMP.md) before finishing work that changes plans, delivery',
+      'state, releases, deployments, or measured outcomes.',
+      '',
+    ].join('\n');
+    await writeFile(join(root, 'AGENTS.md'), content);
+    await writeFile(join(root, 'RMP.md'), '# Protocol\n');
+
+    const plan = await planAgentsUpdate({ root });
+
+    expect(plan.kind).toBe('repair');
+    expect(plan.problem).toBe('Roadmap maintenance content is incomplete.');
+    expect(plan.proposed).toContain('At the start of every task');
+    expect(plan.proposed).toContain('Before the final response');
   });
 
   it('repairs a broken activation block instead of adding a duplicate', async () => {

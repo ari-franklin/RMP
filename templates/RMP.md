@@ -1,10 +1,36 @@
 # Roadmap Maintenance Protocol
 
-## Triggers
+## Agent lifecycle
 
-Apply this protocol before finishing work that changes plans, delivery state,
-releases, deployments, or measured outcomes. Inspect `.roadmap/roadmap.json`
-and `.roadmap/config.json` before proposing a roadmap change.
+Run this protocol autonomously. Do not wait for a human to request roadmap
+maintenance.
+
+After one-time installation, humans do not run maintenance commands or approve
+routine factual transitions. Human interaction is reserved for viewing the
+roadmap, requesting specific roadmap work, and resolving genuine product or
+strategy decisions surfaced by the agent.
+
+At the start of every task:
+
+1. Run `npx rmp sync` from the repository root.
+2. Read `ROADMAP.md`, `.roadmap/roadmap.json`, and `.roadmap/config.json` before
+   planning or editing.
+3. Use the current roadmap to understand active work, dependencies, and open
+   recommendations.
+
+Before the final response after meaningful work:
+
+1. Ensure durable evidence names the relevant roadmap item with
+   `RMP-Item: <item-id>` when the relationship is known.
+2. Run `npx rmp sync` again after tests and other verification finish.
+3. Include resulting roadmap and receipt files with the work. Do not require a
+   separate human-triggered sync.
+4. Stay quiet when maintenance is a no-op. Mention only material roadmap
+   changes, decisions that need human judgment, or failures the agent could not
+   resolve. Never bypass a failure silently.
+
+Use `npx rmp sync --dry-run` only to investigate expected changes. It is not a
+required approval step because normal sync is validated and atomic.
 
 ## Authority boundaries
 
@@ -25,6 +51,7 @@ rewrite prior receipts during ordinary operation.
 
 ## Final response
 
-Report roadmap items changed, evidence used, receipts appended, views
-regenerated, and recommendations awaiting a decision. If no transition was
-authorized, state that clearly and preserve the existing roadmap.
+When maintenance materially changes the roadmap, report the affected items,
+evidence, receipts, and recommendations needing a decision. If maintenance is a
+successful no-op, do not burden the human with an operational update. Preserve
+the existing roadmap when no transition is authorized.

@@ -30,6 +30,13 @@ ROADMAP.md + roadmap.html + history stay on one revision
 
 Strong execution evidence can update execution state automatically. Weak, ambiguous, or strategic evidence becomes a recommendation for a human instead. A deployment may complete a release without pretending the intended customer outcome has been achieved.
 
+The automation is agent-driven: installing RMP adds lifecycle instructions to
+`AGENTS.md`, so compatible coding agents synchronize and read the roadmap when
+they begin work, then synchronize it again before they finish. After one-time
+setup, humans use RMP by viewing the roadmap, asking an agent to build from it,
+or making a product decision the evidence cannot settle. They do not operate
+the maintenance loop, and no background service is required.
+
 ## Requirements
 
 - Node.js 20 or newer
@@ -61,20 +68,26 @@ RMP keeps activation intentionally small:
 ```markdown
 ## Roadmap maintenance
 
-Follow [RMP.md](./RMP.md) before finishing work that changes plans, delivery
-state, releases, deployments, or measured outcomes.
+Follow [RMP.md](./RMP.md). At the start of every task, run `npx rmp sync`,
+then read `ROADMAP.md` before planning or editing. Before the final response,
+run `npx rmp sync` again after meaningful work. Stay quiet on no-op maintenance;
+mention only material roadmap changes, decisions needed, or unresolved failures.
 ```
 
 The full operating protocol lives in `RMP.md`, so you can improve the protocol without repeatedly rewriting agent instructions. Existing `AGENTS.md` content is preserved. Interactive installation previews the exact addition; non-interactive installation requires `--accept-agents-update` before changing it.
 
 ## The Agent Workflow
 
-At the beginning of meaningful work, the agent reads `AGENTS.md`, `RMP.md`, and the current roadmap. Before finishing work that changes plans, delivery, releases, deployments, or measured outcomes, it runs:
+At the beginning of every task, the agent follows `AGENTS.md`, runs sync, and reads `RMP.md` plus the current roadmap. Before its final response after meaningful work, it runs sync again:
 
 ```sh
-npx rmp sync --dry-run
 npx rmp sync
 ```
+
+The first run incorporates evidence left by earlier work and gives the agent a
+current planning view. The final run incorporates evidence from the task that
+just completed. `--dry-run` is available for diagnosis, but is not a routine
+human approval gate.
 
 RMP then:
 

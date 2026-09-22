@@ -29,9 +29,10 @@ test('packed CLI installs valid assets and is idempotent', async () => {
     command: 'init',
     result: { agentAwareness: 'enabled', agentsAction: 'unchanged', installed: [] },
   });
-  expect(await readFile(join(fixture.root, 'AGENTS.md'), 'utf8')).toContain(
-    'Follow [RMP.md](./RMP.md)',
-  );
+  const agents = await readFile(join(fixture.root, 'AGENTS.md'), 'utf8');
+  expect(agents).toContain('Follow [RMP.md](./RMP.md)');
+  expect(agents).toContain('At the start of every task');
+  expect(agents).toContain('Before the final response');
   expect((await runCli(fixture, ['validate', '--json'])).stdout).toContain('"valid":true');
   expect(
     await readFile(
