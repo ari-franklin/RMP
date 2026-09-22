@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rmp.dev/schemas/transition-receipt-1.0.0.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "schemaVersion",
+    "itemId",
+    "previousStatus",
+    "newStatus",
+    "timestamp",
+    "evidenceIds",
+    "evidenceClass",
+    "authorizingRule",
+    "actor",
+    "disposition",
+    "extensions"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^tr-[a-z0-9][a-z0-9-]*$" },
+    "schemaVersion": { "const": "1.0.0" },
+    "itemId": { "type": "string", "pattern": "^(out|del|mil|rel)-" },
+    "previousStatus": { "enum": ["proposed", "active", "blocked", "completed", "cancelled"] },
+    "newStatus": { "enum": ["proposed", "active", "blocked", "completed", "cancelled"] },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "evidenceIds": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^ev-" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "evidenceClass": {
+      "enum": ["deterministic", "corroborated", "observedOutcome", "inferred", "strategic"]
+    },
+    "authorizingRule": { "type": "string", "minLength": 1 },
+    "actor": { "type": "string", "minLength": 1 },
+    "disposition": { "enum": ["automatic", "approved"] },
+    "rationale": { "type": "string" },
+    "supersedes": { "type": "string", "pattern": "^tr-" },
+    "extensions": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z0-9][a-z0-9.-]*/[a-z0-9][a-z0-9.-]*$" },
+      "additionalProperties": { "type": "object" }
+    }
+  }
+}

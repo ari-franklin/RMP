@@ -1,0 +1,7 @@
+dist
+coverage
+node_modules
+test-results
+package-lock.json
+docs/**/*.md
+plans/**/*.md

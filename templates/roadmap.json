@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1.0.0",
+  "revision": 0,
+  "title": "Starter roadmap",
+  "items": [
+    {
+      "id": "out-adoption",
+      "kind": "outcome",
+      "title": "Increase successful adoption",
+      "status": "active",
+      "horizon": "now",
+      "commitment": "planned",
+      "confidence": "medium",
+      "signal": { "metric": "weekly active repositories", "target": 10, "unit": "repositories" },
+      "measurements": [],
+      "extensions": {}
+    },
+    {
+      "id": "del-cli",
+      "kind": "deliverable",
+      "title": "Repository maintenance CLI",
+      "status": "active",
+      "horizon": "now",
+      "commitment": "committed",
+      "confidence": "high",
+      "extensions": {}
+    },
+    {
+      "id": "mil-schema",
+      "kind": "milestone",
+      "title": "Canonical schema is stable",
+      "status": "active",
+      "horizon": "now",
+      "commitment": "committed",
+      "confidence": "high",
+      "extensions": {}
+    },
+    {
+      "id": "rel-first",
+      "kind": "release",
+      "title": "First package release",
+      "status": "proposed",
+      "horizon": "next",
+      "commitment": "planned",
+      "confidence": "medium",
+      "schedule": {
+        "precision": "window",
+        "earliest": "2026-10-01",
+        "latest": "2026-10-31",
+        "evidenceIds": []
+      },
+      "extensions": {}
+    }
+  ],
+  "relationships": [
+    {
+      "from": "del-cli",
+      "to": "out-adoption",
+      "type": "supports",
+      "expectedImpact": "Make roadmap maintenance repeatable"
+    },
+    { "from": "mil-schema", "to": "del-cli", "type": "gates" },
+    { "from": "rel-first", "to": "mil-schema", "type": "dependsOn" }
+  ],
+  "evidence": [],
+  "recommendations": [],
+  "extensions": {}
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rmp.dev/schemas/config-1.0.0.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "deterministic": { "$ref": "#/$defs/disposition" },
+        "corroborated": { "$ref": "#/$defs/disposition" },
+        "observedOutcome": { "$ref": "#/$defs/disposition" },
+        "inferred": { "$ref": "#/$defs/disposition" },
+        "strategic": { "$ref": "#/$defs/disposition" }
+      }
+    },
+    "views": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "enum": ["outcome", "delivery", "release", "dependency", "evidence"]
+        }
+      }
+    },
+    "adapters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "extensions": { "$ref": "#/$defs/extensions" }
+  },
+  "$defs": {
+    "disposition": { "enum": ["automatic", "recommendation", "approval"] },
+    "extensions": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z0-9][a-z0-9.-]*/[a-z0-9][a-z0-9.-]*$" },
+      "additionalProperties": { "type": "object" }
+    }
+  }
+}
