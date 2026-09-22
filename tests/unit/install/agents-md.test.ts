@@ -27,6 +27,8 @@ describe('planAgentsUpdate', () => {
     expect(plan.proposed).toContain('At the start of every task');
     expect(plan.proposed).toContain('Before the final response');
     expect(plan.proposed.match(/npx rmp sync/gu)).toHaveLength(2);
+    expect(plan.proposed).toContain('show, see, or open the roadmap');
+    expect(plan.proposed).toContain('`.roadmap/roadmap.html` in Codex');
     expect(plan.preview).toContain('+++ AGENTS.md');
   });
 
@@ -63,6 +65,8 @@ describe('planAgentsUpdate', () => {
       'then read `ROADMAP.md` before planning or editing. Before the final response,',
       'run `npx rmp sync` again after meaningful work. Stay quiet on no-op maintenance;',
       'mention only material roadmap changes, decisions needed, or unresolved failures.',
+      'When asked to show, see, or open the roadmap, open `.roadmap/roadmap.html` in Codex;',
+      'do not substitute a chat summary unless the user asks for one.',
       '',
     ].join('\n');
     await writeFile(join(root, 'AGENTS.md'), content);
@@ -94,6 +98,7 @@ describe('planAgentsUpdate', () => {
     expect(plan.problem).toBe('Roadmap maintenance content is incomplete.');
     expect(plan.proposed).toContain('At the start of every task');
     expect(plan.proposed).toContain('Before the final response');
+    expect(plan.proposed).toContain('`.roadmap/roadmap.html` in Codex');
   });
 
   it('repairs a broken activation block instead of adding a duplicate', async () => {

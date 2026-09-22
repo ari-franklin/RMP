@@ -38,6 +38,7 @@ describe('RMP configuration', () => {
     expect(protocol).toContain('## Agent lifecycle');
     expect(protocol).toContain('At the start of every task');
     expect(protocol).toContain('Before the final response after meaningful work');
+    expect(protocol).toContain('Open `.roadmap/roadmap.html` in Codex');
     expect(protocol).toContain('## Authority boundaries');
     expect(protocol).toContain('## Evidence receipts');
     expect(protocol).toContain('## Final response');

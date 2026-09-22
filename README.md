@@ -79,6 +79,12 @@ Show me the current roadmap, including what is active, blocked, and next.
 Open the visual roadmap and explain the decisions that need my attention.
 ```
 
+In Codex, requests to **show**, **see**, **view**, or **open** the roadmap open
+the generated `.roadmap/roadmap.html` as the primary result. A chat summary is
+secondary unless you explicitly ask to **summarize** or **explain** the
+roadmap. If the environment cannot display local HTML, the agent provides a
+direct file link instead.
+
 The readable views are also available directly in `ROADMAP.md` and
 `.roadmap/roadmap.html`. These are generated views; `.roadmap/roadmap.json`
 remains the canonical state.

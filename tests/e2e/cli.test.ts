@@ -33,6 +33,7 @@ test('packed CLI installs valid assets and is idempotent', async () => {
   expect(agents).toContain('Follow [RMP.md](./RMP.md)');
   expect(agents).toContain('At the start of every task');
   expect(agents).toContain('Before the final response');
+  expect(agents).toContain('open `.roadmap/roadmap.html` in Codex');
   expect((await runCli(fixture, ['validate', '--json'])).stdout).toContain('"valid":true');
   expect(
     await readFile(

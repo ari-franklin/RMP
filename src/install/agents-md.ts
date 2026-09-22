@@ -33,6 +33,8 @@ const requiredContent = [
   'before the final response',
   'run `npx rmp sync` again',
   'unresolved failures',
+  'show, see, or open the roadmap',
+  '`.roadmap/roadmap.html` in codex',
 ];
 
 async function optionalFile(path: string): Promise<string | undefined> {
@@ -88,6 +90,8 @@ function activationClause(protocolPath: string): string {
     'then read `ROADMAP.md` before planning or editing. Before the final response,',
     'run `npx rmp sync` again after meaningful work. Stay quiet on no-op maintenance;',
     'mention only material roadmap changes, decisions needed, or unresolved failures.',
+    'When asked to show, see, or open the roadmap, open `.roadmap/roadmap.html` in Codex;',
+    'do not substitute a chat summary unless the user asks for one.',
     '',
   ].join('\n');
 }

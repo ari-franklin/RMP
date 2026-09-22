@@ -32,6 +32,20 @@ Before the final response after meaningful work:
 Use `npx rmp sync --dry-run` only to investigate expected changes. It is not a
 required approval step because normal sync is validated and atomic.
 
+## Presenting the roadmap
+
+When a user asks to show, see, view, or open the roadmap:
+
+1. Run `npx rmp sync` so the generated view is current.
+2. Open `.roadmap/roadmap.html` in Codex using the file or artifact viewer.
+3. Treat the visual roadmap as the primary response. Do not replace it with a
+   prose summary unless the user asks for a summary.
+4. If the environment cannot open HTML artifacts, provide a direct clickable
+   path to `.roadmap/roadmap.html` and briefly explain the limitation.
+
+When a user asks to summarize or explain the roadmap, respond in chat and open
+the visual roadmap only when it would help or the user also asks to see it.
+
 ## Authority boundaries
 
 Deterministic and corroborated execution evidence may update execution state.
