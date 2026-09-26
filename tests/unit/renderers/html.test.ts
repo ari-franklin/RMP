@@ -197,6 +197,23 @@ describe('renderHtml', () => {
     expect(outcomePanel).not.toContain('Ship offline CLI');
   });
 
+  it('leaves browser-created outcomes untagged until they have a workflow artifact', () => {
+    const state = roadmap();
+    const outcome = state.items.find((entry) => entry.kind === 'outcome');
+    if (outcome === undefined) throw new Error('Expected outcome fixture');
+    state.items.push({
+      ...outcome,
+      id: 'out-browser-test',
+      title: 'New browser outcome',
+      extensions: { 'rmp/workflow': { artifacts: [] } },
+    });
+
+    const html = renderHtml(state);
+    const card = html.match(/data-item-id="out-browser-test"[\s\S]+?<\/article>/)?.[0] ?? '';
+
+    expect(card).not.toContain('workflow-label');
+  });
+
   it('derives useful project context without generic boilerplate', () => {
     const state = roadmap();
     state.extensions = {};
@@ -272,6 +289,7 @@ describe('renderHtml', () => {
     expect(html).toContain('id="add-outcome"');
     expect(html).toContain('data-edit-field="title"');
     expect(html).toContain('<span class="workflow-label">planned</span>');
+    expect(html).toContain('card.innerHTML = \'<div class="board-card-top"></div>');
     expect(html).not.toContain('<span class="status-label">active</span>');
     expect(html).toContain('IntersectionObserver');
     expect(html).toContain('prefers-reduced-motion');

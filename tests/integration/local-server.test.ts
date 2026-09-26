@@ -33,7 +33,12 @@ describe('local roadmap server', () => {
     });
     const saved = JSON.parse(await readFile(join(root, '.roadmap', 'roadmap.json'), 'utf8')) as {
       revision: number;
-      items: Array<{ id: string; title: string; horizon: string }>;
+      items: Array<{
+        id: string;
+        title: string;
+        horizon: string;
+        extensions: Record<string, unknown>;
+      }>;
       extensions: Record<string, { deliveryWindows: string[] }>;
     };
     expect(saved.revision).toBe(1);
@@ -42,6 +47,9 @@ describe('local roadmap server', () => {
       'Grow successful adoption',
     );
     expect(saved.items.find((item) => item.id === 'out-retention')?.horizon).toBe('next');
+    expect(saved.items.find((item) => item.id === 'out-retention')?.extensions).toEqual({
+      'rmp/workflow': { artifacts: [] },
+    });
     expect(saved.extensions['rmp/view']?.deliveryWindows).toEqual([
       'This month',
       'Next month',

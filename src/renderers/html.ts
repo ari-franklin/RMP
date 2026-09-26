@@ -121,7 +121,27 @@ function overviewCard(
         ? '<p contenteditable="true" data-edit-field="description" data-placeholder="Describe the outcome"></p>'
         : ''
       : `<p${editable ? ' contenteditable="true" data-edit-field="description"' : ''}>${escapeHtml(item.description)}</p>`;
-  const stageTag = stage === undefined ? '' : `<span class="workflow-label">${stage}</span>`;
+  const workflow = item.extensions['rmp/workflow'];
+  const workflowArtifacts =
+    typeof workflow === 'object' &&
+    'artifacts' in workflow &&
+    Array.isArray((workflow as { artifacts?: unknown }).artifacts)
+      ? (workflow as { artifacts: unknown[] }).artifacts.filter(
+          (artifact): artifact is string => typeof artifact === 'string',
+        )
+      : undefined;
+  const effectiveArtifacts =
+    workflowArtifacts === undefined && item.id.startsWith('out-browser-') ? [] : workflowArtifacts;
+  const itemStage =
+    effectiveArtifacts === undefined
+      ? stage
+      : effectiveArtifacts.some((artifact) => /(^|\/)plan\.md(?:#|$)/i.test(artifact))
+        ? 'planned'
+        : effectiveArtifacts.some((artifact) => /(^|\/)design\.md(?:#|$)/i.test(artifact))
+          ? 'designed'
+          : undefined;
+  const stageTag =
+    itemStage === undefined ? '' : `<span class="workflow-label">${itemStage}</span>`;
   return `<article class="board-card commitment-${item.commitment} status-${item.status}" draggable="true" data-item data-item-id="${escapeHtml(item.id)}" data-status="${item.status}" data-horizon="${item.horizon}">
     <div class="board-card-top">${stageTag}</div>
     <h4${editable ? ' contenteditable="true" data-edit-field="title"' : ''}>${escapeHtml(item.title)}</h4>${description}
@@ -444,7 +464,7 @@ function script(revision: number): string {
     card.dataset.status = 'proposed';
     card.dataset.horizon = 'now';
     card.dataset.newOutcome = 'true';
-    card.innerHTML = '<div class="board-card-top"><span class="workflow-label">planned</span></div><h4 contenteditable="true" data-edit-field="title">New outcome</h4><p contenteditable="true" data-edit-field="description" data-placeholder="Describe the outcome"></p><footer><span>medium confidence</span><code>' + id + '</code></footer>';
+    card.innerHTML = '<div class="board-card-top"></div><h4 contenteditable="true" data-edit-field="title">New outcome</h4><p contenteditable="true" data-edit-field="description" data-placeholder="Describe the outcome"></p><footer><span>medium confidence</span><code>' + id + '</code></footer>';
     const lane = document.querySelector('#view-outcome [data-drop-horizon="now"]');
     if (!lane) return;
     lane.appendChild(card);
@@ -546,7 +566,7 @@ function script(revision: number): string {
     card.dataset.status = 'proposed';
     card.dataset.horizon = item.horizon || 'now';
     card.dataset.newOutcome = 'true';
-    card.innerHTML = '<div class="board-card-top"><span class="workflow-label">planned</span></div><h4 contenteditable="true" data-edit-field="title"></h4><p contenteditable="true" data-edit-field="description" data-placeholder="Describe the outcome"></p><footer><span>medium confidence</span><code>' + item.id + '</code></footer>';
+    card.innerHTML = '<div class="board-card-top"></div><h4 contenteditable="true" data-edit-field="title"></h4><p contenteditable="true" data-edit-field="description" data-placeholder="Describe the outcome"></p><footer><span>medium confidence</span><code>' + item.id + '</code></footer>';
     card.querySelector('[data-edit-field="title"]').textContent = item.title || 'New outcome';
     card.querySelector('[data-edit-field="description"]').textContent = item.description || '';
     const lane = document.querySelector('#view-outcome [data-drop-horizon="' + CSS.escape(item.horizon || 'now') + '"]');

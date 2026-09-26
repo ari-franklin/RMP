@@ -120,7 +120,7 @@ function applySave(roadmap: Roadmap, input: SaveRequest): Roadmap {
       confidence: 'medium' as const,
       signal: { metric: 'success measure', target: 1, unit: 'target' },
       measurements: [],
-      extensions: {},
+      extensions: { 'rmp/workflow': { artifacts: [] } },
     };
   });
   return {

@@ -73,7 +73,7 @@
     {
       "commitment": "planned",
       "confidence": "medium",
-      "description": "Teams can see live evidence and portfolio context without replacing repository-owned canonical roadmaps.",
+      "description": "Teams can see live evidence and portfolio context without replacing repository-owned canonical roadmaps. Also tie in Delivery items to each outcome or vice versa so that thread is easy to trace.",
       "extensions": {
         "rmp/strategy": {
           "anchor": "Connect roadmap evidence without creating a second source of truth"
@@ -447,6 +447,47 @@
       },
       "status": "blocked",
       "title": "Phase 10: Bidirectional synchronization preview"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Now, Next, Later for outcomes, none for delivery, etc",
+      "extensions": {
+        "rmp/workflow": {
+          "artifacts": []
+        }
+      },
+      "horizon": "now",
+      "id": "out-browser-muir334r",
+      "kind": "outcome",
+      "measurements": [],
+      "signal": {
+        "metric": "success measure",
+        "target": 1,
+        "unit": "target"
+      },
+      "status": "proposed",
+      "title": "Statuses are contextual to the view one is looking at"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "extensions": {
+        "rmp/workflow": {
+          "artifacts": []
+        }
+      },
+      "horizon": "now",
+      "id": "out-browser-muir699h",
+      "kind": "outcome",
+      "measurements": [],
+      "signal": {
+        "metric": "success measure",
+        "target": 1,
+        "unit": "target"
+      },
+      "status": "proposed",
+      "title": "New outcome"
     }
   ],
   "recommendations": [],
@@ -591,7 +632,7 @@
       "type": "dependsOn"
     }
   ],
-  "revision": 4,
+  "revision": 6,
   "schemaVersion": "1.0.0",
   "title": "RMP Roadmap"
 }
