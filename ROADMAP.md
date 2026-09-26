@@ -1,14 +1,14 @@
 # RMP Roadmap
 
-Revision: 6 | Schema: 1.0.0
+Revision: 8 | Schema: 1.0.0
 Selected format: Now / Next / Later
 Rationale: Horizon clarity is useful without unsupported date precision.
 
 ## Strategic anchor
 
 - **Statuses are contextual to the view one is looking at** (proposed; medium confidence)
-- **New outcome** (proposed; medium confidence)
 - **Roadmap evidence connects across tools and repositories** (active; medium confidence)
+- **Roadmap outcomes can launch their next delivery workflow** (proposed; medium confidence)
 - **Teams collaborate without weakening roadmap trust** (active; medium confidence)
 
 ## Current focus
@@ -27,8 +27,8 @@ Rationale: Horizon clarity is useful without unsupported date precision.
 ## Outcomes
 
 - **Statuses are contextual to the view one is looking at** (proposed; medium confidence)
-- **New outcome** (proposed; medium confidence)
 - **Roadmap evidence connects across tools and repositories** (active; medium confidence)
+- **Roadmap outcomes can launch their next delivery workflow** (proposed; medium confidence)
 - **Teams collaborate without weakening roadmap trust** (active; medium confidence)
 
 ## Releases

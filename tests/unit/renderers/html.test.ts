@@ -282,7 +282,11 @@ describe('renderHtml', () => {
     expect(html).toContain('data-filter="status"');
     expect(html).toContain('<details class="evidence-entry"');
     expect(html).not.toContain('id="export-proposal"');
-    expect(html).toContain('id="reset-ui"');
+    expect(html).toContain('id="undo-change"');
+    expect(html).toContain('const pushUndo = () =>');
+    expect(html).toContain('writeState({ ...previous, undoStack: stack })');
+    expect(html).not.toContain('id="reset-ui"');
+    expect(html).not.toContain('Reset view');
     expect(html).toContain('localStorage.setItem(UI_STATE_KEY');
     expect(html).toContain('localStorage.removeItem(UI_STATE_KEY)');
     expect(html).toContain('application/json');

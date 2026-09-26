@@ -389,15 +389,23 @@ function script(revision: number): string {
   const horizonFilter = document.querySelector('[data-filter="horizon"]');
   const deliveryWindows = [...document.querySelectorAll('[data-delivery-window]')];
   const defaultDeliveryWindows = deliveryWindows.map((entry) => (entry.textContent || '').trim());
+  const undoButton = document.getElementById('undo-change');
   const saveButton = document.getElementById('save-roadmap');
   const saveStatus = document.getElementById('save-status');
   let draggedCard = null;
   const readState = () => { try { return JSON.parse(localStorage.getItem(UI_STATE_KEY) || '{}'); } catch { return {}; } };
   const writeState = (state) => { try { localStorage.setItem(UI_STATE_KEY, JSON.stringify(state)); } catch {} };
   const clearState = () => { try { localStorage.removeItem(UI_STATE_KEY); } catch {} };
+  const pushUndo = () => {
+    const state = readState();
+    const { undoStack, ...snapshot } = state;
+    state.undoStack = [...(Array.isArray(undoStack) ? undoStack : []), snapshot].slice(-30);
+    writeState(state);
+  };
   const updateSaveButton = () => {
     const state = readState();
     const changed = (state.horizonMoves && Object.keys(state.horizonMoves).length > 0) || state.deliveryWindowsChanged === true || (state.itemEdits && Object.keys(state.itemEdits).length > 0) || (Array.isArray(state.newOutcomes) && state.newOutcomes.length > 0);
+    undoButton.disabled = !Array.isArray(state.undoStack) || state.undoStack.length === 0;
     saveButton.disabled = !changed;
     saveStatus.textContent = changed ? 'Unsaved changes' : '';
   };
@@ -437,8 +445,15 @@ function script(revision: number): string {
     });
   };
   document.querySelectorAll('[data-item-id][draggable="true"]').forEach(bindDraggable);
+  const editUndoCaptured = new WeakSet();
   const bindEditable = (card) => card.querySelectorAll('[data-edit-field]').forEach((field) => {
+    field.addEventListener('focus', () => editUndoCaptured.delete(field));
+    field.addEventListener('blur', () => editUndoCaptured.delete(field));
     field.addEventListener('input', () => {
+      if (!editUndoCaptured.has(field)) {
+        pushUndo();
+        editUndoCaptured.add(field);
+      }
       const state = readState();
       const id = card.dataset.itemId;
       if (!id) return;
@@ -455,6 +470,7 @@ function script(revision: number): string {
   });
   document.querySelectorAll('#view-outcome [data-item-id]').forEach(bindEditable);
   document.getElementById('add-outcome')?.addEventListener('click', () => {
+    pushUndo();
     const id = 'out-browser-' + Date.now().toString(36);
     const card = document.createElement('article');
     card.className = 'board-card commitment-planned status-proposed';
@@ -487,6 +503,8 @@ function script(revision: number): string {
       const horizon = lane.dataset.dropHorizon;
       const itemId = draggedCard.dataset.itemId;
       if (!horizon || !itemId) return;
+      if (draggedCard.dataset.horizon === horizon) return;
+      pushUndo();
       document.querySelectorAll('[data-item-id="' + CSS.escape(itemId) + '"]').forEach((card) => {
         const panel = card.closest('[role="tabpanel"]');
         const destination = panel && panel.querySelector('[data-drop-horizon="' + CSS.escape(horizon) + '"]');
@@ -514,6 +532,9 @@ function script(revision: number): string {
     label.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); label.blur(); } });
     label.addEventListener('blur', () => {
       const value = (label.textContent || '').trim().slice(0, 40) || defaultDeliveryWindows[index];
+      const currentWindows = readState().deliveryWindows || defaultDeliveryWindows;
+      if (value === currentWindows[index]) return;
+      pushUndo();
       label.textContent = value;
       const nextState = readState();
       nextState.deliveryWindows = deliveryWindows.map((entry, windowIndex) => (entry.textContent || '').trim() || defaultDeliveryWindows[windowIndex]);
@@ -522,7 +543,14 @@ function script(revision: number): string {
       updateSaveButton();
     });
   });
-  document.getElementById('reset-ui').addEventListener('click', () => { clearState(); statusFilter.value = 'all'; horizonFilter.value = 'all'; deliveryWindows.forEach((label, index) => { label.textContent = defaultDeliveryWindows[index]; }); showTab('view-overview'); applyFilters(); updateSaveButton(); });
+  undoButton.addEventListener('click', () => {
+    const state = readState();
+    const stack = Array.isArray(state.undoStack) ? [...state.undoStack] : [];
+    const previous = stack.pop();
+    if (!previous || typeof previous !== 'object') return;
+    writeState({ ...previous, undoStack: stack });
+    location.reload();
+  });
   const saveDraft = async (draft) => {
     saveButton.disabled = true;
     saveStatus.textContent = 'Saving...';
@@ -665,6 +693,6 @@ export function renderHtml(roadmap: Roadmap, options: HtmlRenderOptions = {}): s
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(roadmap.title)}</title><style>${styles()}${premiumStyles()}${releaseTimelineStyles()}${deliveryPlanStyles()}</style></head>
 <body><main><div class="wrap">
   <header><p class="muted">Roadmap revision ${String(model.revision)} · Schema ${escapeHtml(model.schemaVersion)}</p><h1>${escapeHtml(model.title)}</h1><p class="metadata">${metadata.map(escapeHtml).join(' · ')}</p></header>
-  <section id="roadmap-views" aria-labelledby="roadmap-heading"><h2 id="roadmap-heading">Roadmap</h2><div class="toolbar"><label>Status<select aria-label="Filter by status" data-filter="status"><option value="all">All statuses</option><option value="active">Active</option><option value="blocked">Blocked</option><option value="completed">Completed</option><option value="proposed">Proposed</option></select></label><label>Horizon<select aria-label="Filter by horizon" data-filter="horizon"><option value="all">All horizons</option><option value="now">Now</option><option value="next">Next</option><option value="later">Later</option></select></label><button id="reset-ui" type="button" aria-label="Reset local view">Reset view</button><button id="save-roadmap" class="primary-save" type="button" disabled>Save roadmap</button><span id="save-status" class="save-status" role="status"></span></div><div class="tabs" role="tablist" aria-label="Roadmap views">${tabs.map(([view, label, id]) => `<button id="tab-${view}" type="button" role="tab" aria-controls="${id}" aria-selected="${String(view === defaultView)}" tabindex="${view === defaultView ? '0' : '-1'}">${label}</button>`).join('')}</div>${panels}</section>
+  <section id="roadmap-views" aria-labelledby="roadmap-heading"><h2 id="roadmap-heading">Roadmap</h2><div class="toolbar"><label>Status<select aria-label="Filter by status" data-filter="status"><option value="all">All statuses</option><option value="active">Active</option><option value="blocked">Blocked</option><option value="completed">Completed</option><option value="proposed">Proposed</option></select></label><label>Horizon<select aria-label="Filter by horizon" data-filter="horizon"><option value="all">All horizons</option><option value="now">Now</option><option value="next">Next</option><option value="later">Later</option></select></label><button id="undo-change" type="button" aria-label="Undo last change" disabled>Undo</button><button id="save-roadmap" class="primary-save" type="button" disabled>Save roadmap</button><span id="save-status" class="save-status" role="status"></span></div><div class="tabs" role="tablist" aria-label="Roadmap views">${tabs.map(([view, label, id]) => `<button id="tab-${view}" type="button" role="tab" aria-controls="${id}" aria-selected="${String(view === defaultView)}" tabindex="${view === defaultView ? '0' : '-1'}">${label}</button>`).join('')}</div>${panels}</section>
 </div></main><script type="application/json" id="roadmap-data">${embeddedData}</script><script>${script(roadmap.revision).replaceAll('view-overview', defaultPanelId)}</script></body></html>\n`;
 }

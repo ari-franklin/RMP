@@ -94,7 +94,7 @@
     {
       "commitment": "planned",
       "confidence": "medium",
-      "description": "Shared participation and cross-machine workflows preserve authority, provenance, and reversible change.",
+      "description": "",
       "extensions": {
         "rmp/strategy": {
           "anchor": "Scale collaboration while preserving verifiable roadmap history"
@@ -472,12 +472,13 @@
     {
       "commitment": "planned",
       "confidence": "medium",
+      "description": "From an outcome card, users can begin the next appropriate design, planning, or build workflow. RMP derives the available action from verified project artifacts and hands the outcome’s context to the configured agent workflow.This can be configured on RMP initialization and buttons can be active based on tags. For example:no tag = start designdesigned = start planplanned = start build",
       "extensions": {
         "rmp/workflow": {
           "artifacts": []
         }
       },
-      "horizon": "now",
+      "horizon": "next",
       "id": "out-browser-muir699h",
       "kind": "outcome",
       "measurements": [],
@@ -487,7 +488,7 @@
         "unit": "target"
       },
       "status": "proposed",
-      "title": "New outcome"
+      "title": "Roadmap outcomes can launch their next delivery workflow"
     }
   ],
   "recommendations": [],
@@ -632,7 +633,7 @@
       "type": "dependsOn"
     }
   ],
-  "revision": 6,
+  "revision": 8,
   "schemaVersion": "1.0.0",
   "title": "RMP Roadmap"
 }
