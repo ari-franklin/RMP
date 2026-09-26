@@ -158,15 +158,19 @@ supporting bets; evidence strength; confidence; and unresolved validation.
 
 ### Delivery view
 
-Shows active, upcoming, later, blocked, deferred, and completed work. A
-Now/Next/Later board is the default presentation when precise scheduling is not
-supported.
+Shows the outputs being produced, their sequence, active windows, dependencies,
+blocked states, and completion. Delivery should prefer a Gantt-like output plan
+when dates or credible windows exist. When timing evidence is weak, it falls
+back to a status-flow list with horizon as metadata and a filter. Delivery must
+not turn horizon into a kanban-style column board or invent bar duration from a
+Now / Next / Later label.
 
 ### Release view
 
 Shows releases, included capabilities, milestones, readiness gates,
 dependencies, forecast windows, and confidence. It may use a Gantt-like view
-when sequencing and timing evidence justify one.
+when sequencing and timing evidence justify one. When timing evidence is weak,
+it should fall back to release markers, not a kanban-style horizon board.
 
 A release view must distinguish:
 

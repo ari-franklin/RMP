@@ -54,7 +54,8 @@ function scheduleLabel(item: RoadmapItem): string | undefined {
     item.commitment === 'committed' &&
     item.schedule.evidenceIds.length > 0
   ) {
-    return `Committed: ${item.schedule.date ?? 'date unavailable'}`;
+    const label = item.status === 'completed' ? 'Published' : 'Committed';
+    return `${label}: ${item.schedule.date ?? 'date unavailable'}`;
   }
   if (item.schedule.precision === 'window') {
     return `Forecast: ${item.schedule.earliest ?? '?'} to ${item.schedule.latest ?? '?'}`;

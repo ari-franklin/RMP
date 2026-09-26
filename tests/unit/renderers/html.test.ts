@@ -170,10 +170,11 @@ describe('renderHtml', () => {
     expect(html).toContain('id="view-outcome"');
     expect(html).toContain('id="view-release"');
     expect(html).toMatch(/id="view-outcome"[\s\S]+?data-pattern="outcome-lanes"/);
-    expect(html).toMatch(/id="view-delivery"[\s\S]+?data-pattern="now-next-later"/);
+    expect(html).toMatch(/id="view-delivery"[\s\S]+?data-pattern="delivery-plan"/);
+    expect(html).toMatch(/id="view-release"[\s\S]+?data-pattern="gantt-release"/);
   });
 
-  it('renders measured outcome roadmaps as a horizon kanban', () => {
+  it('renders measured outcome roadmaps without using kanban for delivery', () => {
     const state = roadmap();
     state.items = state.items.filter((entry) => entry.kind !== 'release');
 
@@ -181,6 +182,9 @@ describe('renderHtml', () => {
 
     expect(html).toContain('data-pattern="outcome-lanes"');
     expect(html).toContain('class="pattern-now-next-later horizon-grid"');
+    expect(html).toMatch(/id="view-delivery"[\s\S]+?data-pattern="delivery-plan"/);
+    expect(html).toContain('class="delivery-plan-axis"');
+    expect(html).toContain('class="delivery-plan-bar horizon-now');
   });
 
   it('derives useful framing and renders item descriptions without empty boilerplate', () => {
@@ -234,13 +238,15 @@ describe('renderHtml', () => {
     }
   });
 
-  it('distinguishes committed dates from forecasts and only emits positioned bars for exact data', () => {
+  it('renders exact releases as dated events and keeps forecast windows as open markers', () => {
     const html = renderHtml(roadmap(), { format: 'gantt-release' });
 
-    expect(html).toContain('Committed: 2026-11-15');
+    expect(html).toContain('<time datetime="2026-11-15">2026-11-15</time>');
+    expect(html).toContain('class="timeline-dot"');
     expect(html).toContain('Forecast: 2026-10-01 to 2026-10-31');
-    expect(html).toContain('class="timeline-bar"');
     expect(html).toContain('class="timeline-marker"');
+    expect(html).toContain('Published <span>1</span>');
+    expect(html).toContain('Upcoming / date open <span>1</span>');
   });
 
   it.each(formats)('renders the %s pattern with a distinct layout hook', (format) => {
