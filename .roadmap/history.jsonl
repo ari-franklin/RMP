@@ -1,0 +1,1 @@
+{"id":"tr-example","schemaVersion":"1.0.0","itemId":"del-cli","previousStatus":"proposed","newStatus":"active","timestamp":"2026-09-20T00:00:00Z","evidenceIds":["ev-plan-approved"],"evidenceClass":"deterministic","authorizingRule":"accepted-plan-phase","actor":"rmp","disposition":"automatic","rationale":"The implementation phase was accepted.","extensions":{}}

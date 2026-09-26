@@ -87,7 +87,7 @@ describe('buildRoadmapViewModel', () => {
       'mil-schema',
       'rel-october',
     ]);
-    expect(view.views.outcome.items.map((entry) => entry.id)).toEqual(['out-adoption', 'del-cli']);
+    expect(view.views.outcome.items.map((entry) => entry.id)).toEqual(['out-adoption']);
     expect(view.views.delivery.items.map((entry) => entry.id)).toEqual(['del-cli', 'mil-schema']);
     expect(view.views.release.items.map((entry) => entry.id)).toEqual(['rel-october']);
     expect(view.views.dependency.relationships).toHaveLength(2);
@@ -101,6 +101,7 @@ describe('buildRoadmapViewModel', () => {
     expect(view.views.outcome.items.find((entry) => entry.id === 'out-adoption')?.status).toBe(
       'active',
     );
+    expect(view.views.outcome.items.some((entry) => entry.status === 'completed')).toBe(false);
   });
 
   it('labels planning windows as forecasts and evidence-backed exact dates as committed', () => {

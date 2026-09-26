@@ -6,6 +6,7 @@ import { runSync, type RunSyncOptions, type RunSyncResult } from '../core/run-sy
 import { installRmp, type InstallOptions, type InstallResult } from '../install/index.js';
 import { validateRoadmap } from '../schemas/index.js';
 import { validateConsistency } from '../core/validate-consistency.js';
+import { startLocalServer } from '../server/index.js';
 
 export interface ValidationCommandResult {
   valid: boolean;
@@ -16,6 +17,7 @@ export interface CommandDependencies {
   install: (options: InstallOptions) => Promise<InstallResult>;
   sync: (options: RunSyncOptions) => Promise<RunSyncResult>;
   validate: (root: string) => Promise<ValidationCommandResult>;
+  serve?: (options: { root: string; port?: number }) => Promise<{ url: string }>;
 }
 
 export interface CliExecutionResult {
@@ -24,7 +26,7 @@ export interface CliExecutionResult {
   stderr: string;
 }
 
-type Command = 'init' | 'validate' | 'collect' | 'reconcile' | 'render' | 'sync';
+type Command = 'init' | 'validate' | 'collect' | 'reconcile' | 'render' | 'sync' | 'serve';
 
 async function validateRepository(root: string): Promise<ValidationCommandResult> {
   try {
@@ -49,6 +51,7 @@ const defaults: CommandDependencies = {
   install: installRmp,
   sync: runSync,
   validate: validateRepository,
+  serve: startLocalServer,
 };
 
 function success(command: Command, value: unknown, json: boolean): CliExecutionResult {
@@ -70,7 +73,11 @@ export async function executeCli(
   dependencies: CommandDependencies = defaults,
 ): Promise<CliExecutionResult> {
   const [candidate, ...args] = argv;
-  if (!['init', 'validate', 'collect', 'reconcile', 'render', 'sync'].includes(candidate ?? '')) {
+  if (
+    !['init', 'validate', 'collect', 'reconcile', 'render', 'sync', 'serve'].includes(
+      candidate ?? '',
+    )
+  ) {
     return usage(`Unknown command: ${candidate ?? '(missing)'}`);
   }
   const command = candidate as Command;
@@ -86,6 +93,7 @@ export async function executeCli(
         'non-interactive': { type: 'boolean' },
         'accept-agents-update': { type: 'boolean' },
         format: { type: 'string' },
+        port: { type: 'string' },
       },
     });
     const root = resolve(values.root ?? '.');
@@ -107,6 +115,16 @@ export async function executeCli(
             stdout: json ? `${JSON.stringify({ schemaVersion: '1.0.0', command, result })}\n` : '',
             stderr: json ? '' : `${result.diagnostics[0]?.message ?? 'Validation failed'}\n`,
           };
+    }
+    if (command === 'serve') {
+      const port = values.port === undefined ? undefined : Number(values.port);
+      if (port !== undefined && (!Number.isInteger(port) || port < 1 || port > 65535)) {
+        return usage(`Invalid port: ${String(values.port)}`);
+      }
+      const result = await (dependencies.serve ?? startLocalServer)(
+        port === undefined ? { root } : { root, port },
+      );
+      return success(command, result, json);
     }
     const format = values.format ?? 'all';
     if (!['all', 'markdown', 'html'].includes(format)) return usage(`Invalid format: ${format}`);

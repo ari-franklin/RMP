@@ -1,5 +1,5 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { planAgentsUpdate } from './agents-md.js';
@@ -92,7 +92,19 @@ async function installAssets(
       continue;
     }
     await mkdir(dirname(destination), { recursive: true });
-    await writeFile(destination, await readFile(join(roots[asset.sourceGroup], asset.source)));
+    const source = await readFile(join(roots[asset.sourceGroup], asset.source));
+    if (asset.destination === '.roadmap/roadmap.json') {
+      const roadmap = JSON.parse(source.toString('utf8')) as { title: string };
+      const projectName = basename(root)
+        .split(/[-_\s]+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+      roadmap.title = `${projectName || 'Project'} Roadmap`;
+      await writeFile(destination, `${JSON.stringify(roadmap, null, 2)}\n`, 'utf8');
+    } else {
+      await writeFile(destination, source);
+    }
     installed.push(asset.destination);
   }
 

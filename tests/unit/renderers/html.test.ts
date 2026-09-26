@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Roadmap, RoadmapItem } from '../../../src/types/index.js';
-import type { RoadmapFormat } from '../../../src/formats/index.js';
 import { renderHtml } from '../../../src/renderers/html.js';
 
 function item(
@@ -85,7 +84,7 @@ function roadmap(): Roadmap {
         id: 'ev-plan',
         class: 'strategic',
         source: 'plan',
-        sourceRef: 'plans/release.md',
+        sourceRef: 'plans/plan.md',
         observedAt: '2026-09-19T12:00:00Z',
         summary: '</script><script>globalThis.compromised=true</script>',
         extensions: {},
@@ -118,18 +117,6 @@ function roadmap(): Roadmap {
   };
 }
 
-const formats: RoadmapFormat[] = [
-  'outcome-lanes',
-  'now-next-later',
-  'strategy-choice',
-  'milestones',
-  'opportunity-tree',
-  'portfolio-bets',
-  'quarterly-lanes',
-  'dashboard',
-  'gantt-release',
-];
-
 describe('renderHtml', () => {
   it('renders deterministic, escaped, self-contained semantic HTML', () => {
     const first = renderHtml(roadmap());
@@ -144,17 +131,16 @@ describe('renderHtml', () => {
     expect(first).toContain('data-revision="12"');
   });
 
-  it('places a comprehensive overview and five drill-down views before the evidence detail', () => {
+  it('opens project context and provides five focused roadmap views', () => {
     const html = renderHtml(roadmap());
 
     expect(html.match(/<button[^>]+role="tab"/g)).toHaveLength(6);
     expect(html.match(/<section[^>]+role="tabpanel"/g)).toHaveLength(6);
     expect(html).toContain('aria-label="Roadmap views"');
-    expect(html).toContain('id="tab-overview"');
-    expect(html).toMatch(/id="tab-overview"[^>]+aria-selected="true"/);
-    expect(html).toContain('id="view-overview"');
-    expect(html).toContain('data-pattern="now-next-later"');
-    expect(html).toContain("showTab(typeof state.tab === 'string' ? state.tab : 'view-overview')");
+    expect(html).not.toContain('id="tab-overview"');
+    expect(html).toMatch(/id="tab-context"[^>]+aria-selected="true"/);
+    expect(html).toContain('id="view-context"');
+    expect(html).toContain("showTab(typeof state.tab === 'string' ? state.tab : 'view-context')");
     expect(html).toContain(`rmp-ui-state-v2-${String(roadmap().revision)}`);
     expect(html).toContain("event.key === 'ArrowRight'");
     expect(html.indexOf('id="roadmap-views"')).toBeLessThan(html.indexOf('id="evidence-risk"'));
@@ -165,7 +151,7 @@ describe('renderHtml', () => {
     const html = renderHtml(roadmap(), { defaultView: 'delivery' });
 
     expect(html).toMatch(/id="tab-delivery"[^>]+aria-selected="true"/);
-    expect(html).toMatch(/id="tab-overview"[^>]+aria-selected="false"/);
+    expect(html).toMatch(/id="tab-context"[^>]+aria-selected="false"/);
     expect(html).toContain("showTab(typeof state.tab === 'string' ? state.tab : 'view-delivery')");
     expect(html).toContain('id="view-outcome"');
     expect(html).toContain('id="view-release"');
@@ -185,9 +171,33 @@ describe('renderHtml', () => {
     expect(html).toMatch(/id="view-delivery"[\s\S]+?data-pattern="delivery-plan"/);
     expect(html).toContain('class="delivery-plan-axis"');
     expect(html).toContain('class="delivery-plan-bar horizon-now');
+    expect(html).toContain('<strong>Supports:</strong> Increase adoption');
+    expect(html).toContain('data-delivery-window="0">30 days</span>');
+    expect(html).toContain('data-delivery-window="1">60 days</span>');
+    expect(html).toContain('data-delivery-window="2">90 days</span>');
+    expect(html).toContain('draggable="true" data-item data-item-id="out-adoption"');
+    expect(html).toContain('data-drop-horizon="now"');
+    expect(html).toContain('nextState.horizonMoves');
+    expect(html).toContain('id="save-roadmap" class="primary-save" type="button" disabled');
+    expect(html).toContain("fetch('/api/save'");
+    expect(html).toContain('updateSaveButton()');
+    expect(html).toContain("location.href = 'http://127.0.0.1:4177/#rmp-save='");
+    expect(html).not.toContain('Open with rmp serve to save');
   });
 
-  it('derives useful framing and renders item descriptions without empty boilerplate', () => {
+  it('keeps completed work out of the outcomes roadmap', () => {
+    const state = roadmap();
+    const delivery = state.items.find((entry) => entry.id === 'del-cli');
+    if (delivery === undefined) throw new Error('Expected delivery fixture');
+    delivery.status = 'completed';
+
+    const html = renderHtml(state);
+    const outcomePanel = html.match(/id="view-outcome"[\s\S]+?id="view-delivery"/)?.[0] ?? '';
+
+    expect(outcomePanel).not.toContain('Ship offline CLI');
+  });
+
+  it('derives useful project context without generic boilerplate', () => {
     const state = roadmap();
     state.extensions = {};
     const delivery = state.items[1];
@@ -200,7 +210,6 @@ describe('renderHtml', () => {
     const html = renderHtml(state);
 
     expect(html).toContain('Increase adoption');
-    expect(html).toContain('Deliver a reliable repository-native maintenance workflow.');
     expect(html).toContain('4 active');
     expect(html).not.toContain('No strategic anchor is recorded.');
     expect(html).not.toContain('No baseline is recorded.');
@@ -231,8 +240,6 @@ describe('renderHtml', () => {
       'Validate adoption signal',
       'Hosted synchronization',
       'Validation needs',
-      'Confidence: high',
-      '<span class="commitment-label">committed</span>',
     ]) {
       expect(html).toContain(text);
     }
@@ -249,14 +256,7 @@ describe('renderHtml', () => {
     expect(html).toContain('Upcoming / date open <span>1</span>');
   });
 
-  it.each(formats)('renders the %s pattern with a distinct layout hook', (format) => {
-    const html = renderHtml(roadmap(), { format });
-
-    expect(html).toContain(`data-pattern="${format}"`);
-    expect(html).toContain(`pattern-${format}`);
-  });
-
-  it('embeds responsive and print rules plus local filtering, evidence, proposal, and reset controls', () => {
+  it('embeds responsive and print rules plus local editing, evidence, save, and reset controls', () => {
     const html = renderHtml(roadmap());
 
     expect(html).toMatch(/@media\s*\(max-width:\s*760px\)/);
@@ -264,12 +264,15 @@ describe('renderHtml', () => {
     expect(html).toMatch(/overflow-wrap:\s*anywhere/);
     expect(html).toContain('data-filter="status"');
     expect(html).toContain('<details class="evidence-entry"');
-    expect(html).toContain('id="export-proposal"');
+    expect(html).not.toContain('id="export-proposal"');
     expect(html).toContain('id="reset-ui"');
     expect(html).toContain('localStorage.setItem(UI_STATE_KEY');
     expect(html).toContain('localStorage.removeItem(UI_STATE_KEY)');
     expect(html).toContain('application/json');
-    expect(html).toContain('proposalOnly: true');
+    expect(html).toContain('id="add-outcome"');
+    expect(html).toContain('data-edit-field="title"');
+    expect(html).toContain('<span class="workflow-label">planned</span>');
+    expect(html).not.toContain('<span class="status-label">active</span>');
     expect(html).toContain('IntersectionObserver');
     expect(html).toContain('prefers-reduced-motion');
     expect(html).toContain('cubic-bezier(.32,.72,0,1)');

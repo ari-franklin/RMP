@@ -1,4 +1,4 @@
-import { formatLabel, type RoadmapFormat } from '../formats/index.js';
+import type { RoadmapFormat } from '../formats/index.js';
 import type { Roadmap, RoadmapItem } from '../types/index.js';
 import { buildRoadmapViewModel, type ProjectedItem, type RoadmapProjection } from './view-model.js';
 
@@ -7,7 +7,7 @@ export interface HtmlRenderOptions {
   horizon?: string;
   decision?: string;
   format?: RoadmapFormat;
-  defaultView?: 'outcome' | 'delivery' | 'release' | 'dependency' | 'evidence';
+  defaultView?: 'outcome' | 'delivery' | 'release' | 'dependency' | 'evidence' | 'context';
 }
 
 interface StrategyFrame {
@@ -48,7 +48,7 @@ function stringList(value: unknown): string[] {
 }
 
 function strategyFrame(roadmap: Roadmap): StrategyFrame {
-  const strategy = roadmap.extensions.strategy ?? {};
+  const strategy = roadmap.extensions.strategy ?? roadmap.extensions['rmp/strategy'] ?? {};
   const outcomes = roadmap.items.filter((item) => item.kind === 'outcome');
   const anchor = outcomes.find((item) => item.status === 'active') ?? outcomes[0];
   const statusCounts = new Map<string, number>();
@@ -95,7 +95,7 @@ function itemCard(item: ProjectedItem): string {
     item.scheduleLabel === undefined
       ? ''
       : `<p class="schedule">${escapeHtml(item.scheduleLabel)}</p>`;
-  return `<article class="roadmap-card commitment-${item.commitment} status-${item.status}" data-item data-status="${item.status}" data-horizon="${item.horizon}">
+  return `<article class="roadmap-card commitment-${item.commitment} status-${item.status}" draggable="true" data-item data-item-id="${escapeHtml(item.id)}" data-status="${item.status}" data-horizon="${item.horizon}">
     <div class="card-heading"><h4>${escapeHtml(item.title)}</h4><span class="status-label">${escapeHtml(item.status)}</span></div>
     <p class="item-id">${escapeHtml(item.kind)} · ${escapeHtml(item.horizon)} · ${escapeHtml(item.id)}</p>${description}
     <p><strong>Commitment:</strong> ${escapeHtml(item.commitment)} · <strong>Confidence:</strong> ${escapeHtml(item.confidence)}</p>
@@ -103,31 +103,62 @@ function itemCard(item: ProjectedItem): string {
   </article>`;
 }
 
-function overviewCard(item: ProjectedItem): string {
+function workflowStage(roadmap: Roadmap): 'designed' | 'planned' | undefined {
+  const references = roadmap.evidence.map((entry) => entry.sourceRef.toLowerCase());
+  if (references.some((reference) => /(^|\/)plan\.md(?:#|$)/.test(reference))) return 'planned';
+  if (references.some((reference) => /(^|\/)design\.md(?:#|$)/.test(reference))) return 'designed';
+  return undefined;
+}
+
+function overviewCard(
+  item: ProjectedItem,
+  stage?: 'designed' | 'planned',
+  editable = false,
+): string {
   const description =
-    item.description === undefined ? '' : `<p>${escapeHtml(item.description)}</p>`;
-  return `<article class="board-card commitment-${item.commitment} status-${item.status}" data-item data-status="${item.status}" data-horizon="${item.horizon}">
-    <div class="board-card-top"><span class="commitment-label">${escapeHtml(item.commitment)}</span><span class="status-label">${escapeHtml(item.status)}</span></div>
-    <h4>${escapeHtml(item.title)}</h4>${description}
+    item.description === undefined
+      ? editable
+        ? '<p contenteditable="true" data-edit-field="description" data-placeholder="Describe the outcome"></p>'
+        : ''
+      : `<p${editable ? ' contenteditable="true" data-edit-field="description"' : ''}>${escapeHtml(item.description)}</p>`;
+  const stageTag = stage === undefined ? '' : `<span class="workflow-label">${stage}</span>`;
+  return `<article class="board-card commitment-${item.commitment} status-${item.status}" draggable="true" data-item data-item-id="${escapeHtml(item.id)}" data-status="${item.status}" data-horizon="${item.horizon}">
+    <div class="board-card-top">${stageTag}</div>
+    <h4${editable ? ' contenteditable="true" data-edit-field="title"' : ''}>${escapeHtml(item.title)}</h4>${description}
     <footer><span>${escapeHtml(item.confidence)} confidence</span><code>${escapeHtml(item.id)}</code></footer>
   </article>`;
 }
 
-function nowNextLater(items: ProjectedItem[], namespace: string): string {
+function nowNextLater(
+  items: ProjectedItem[],
+  namespace: string,
+  stage?: 'designed' | 'planned',
+  editable = false,
+): string {
   return `<div class="pattern-now-next-later horizon-grid">${(['now', 'next', 'later'] as const)
     .map((horizon) => {
       const laneItems = items.filter((item) => item.horizon === horizon);
-      return `<section class="lane" aria-labelledby="lane-${namespace}-${horizon}">
+      return `<section class="lane" data-drop-horizon="${horizon}" aria-labelledby="lane-${namespace}-${horizon}">
         <h3 id="lane-${namespace}-${horizon}">${horizon.charAt(0).toUpperCase()}${horizon.slice(1)} <span class="lane-count">${String(laneItems.length)}</span></h3>
-        ${laneItems.map(overviewCard).join('') || '<p class="muted">No work scheduled.</p>'}
+        ${laneItems.map((item) => overviewCard(item, stage, editable)).join('') || '<p class="muted">No work scheduled.</p>'}
       </section>`;
     })
     .join('')}</div>`;
 }
 
-function deliveryPlan(projection: RoadmapProjection): string {
+function deliveryPlan(projection: RoadmapProjection, roadmap: Roadmap): string {
+  const viewExtension = roadmap.extensions['rmp/view'];
+  const configuredWindows =
+    typeof viewExtension === 'object' && 'deliveryWindows' in viewExtension
+      ? stringList((viewExtension as { deliveryWindows?: unknown }).deliveryWindows)
+      : [];
+  const deliveryWindows =
+    configuredWindows.length === 3 ? configuredWindows : ['30 days', '60 days', '90 days'];
   const deliverables = projection.items.filter((item) => item.kind === 'deliverable');
   const milestones = projection.items.filter((item) => item.kind === 'milestone');
+  const outcomesById = new Map(
+    roadmap.items.filter((item) => item.kind === 'outcome').map((item) => [item.id, item]),
+  );
   const milestoneIds = new Set(milestones.map((item) => item.id));
   const claimed = new Set<string>();
   const row = (item: ProjectedItem, child = false): string =>
@@ -137,6 +168,13 @@ function deliveryPlan(projection: RoadmapProjection): string {
     </div>`;
   const groups = deliverables
     .map((deliverable) => {
+      const supportedOutcomes = projection.relationships
+        .filter(
+          (relationship) =>
+            relationship.type === 'supports' && relationship.from === deliverable.id,
+        )
+        .map((relationship) => outcomesById.get(relationship.to))
+        .filter((item): item is RoadmapItem => item !== undefined);
       const children = projection.relationships
         .filter(
           (relationship) =>
@@ -147,7 +185,11 @@ function deliveryPlan(projection: RoadmapProjection): string {
         .map((relationship) => milestones.find((item) => item.id === relationship.from))
         .filter((item): item is ProjectedItem => item !== undefined);
       children.forEach((item) => claimed.add(item.id));
-      return `<section class="delivery-plan-group"><h3>${escapeHtml(deliverable.title)} <span>${String(children.length + 1)}</span></h3>${row(deliverable)}${children.map((item) => row(item, true)).join('')}</section>`;
+      const outcomeLinks =
+        supportedOutcomes.length === 0
+          ? '<p class="delivery-plan-outcomes delivery-plan-outcomes-missing">Outcome link not recorded</p>'
+          : `<p class="delivery-plan-outcomes"><strong>Supports:</strong> ${supportedOutcomes.map((item) => escapeHtml(item.title)).join(' · ')}</p>`;
+      return `<section class="delivery-plan-group"><header class="delivery-plan-group-heading"><h3>${escapeHtml(deliverable.title)} <span>${String(children.length + 1)}</span></h3>${outcomeLinks}</header>${row(deliverable)}${children.map((item) => row(item, true)).join('')}</section>`;
     })
     .join('');
   const unassigned = milestones.filter((item) => !claimed.has(item.id));
@@ -156,11 +198,11 @@ function deliveryPlan(projection: RoadmapProjection): string {
       ? ''
       : `<section class="delivery-plan-group"><h3>Other outputs <span>${String(unassigned.length)}</span></h3>${unassigned.map((item) => row(item, true)).join('')}</section>`;
   if (!groups && !remaining) return '<p>No delivery work is defined.</p>';
-  return `<div class="pattern-delivery-plan"><div class="delivery-plan-axis" aria-hidden="true"><span>Output</span><span>Now</span><span>Next</span><span>Later</span></div>${groups}${remaining}</div>`;
+  return `<div class="pattern-delivery-plan"><div class="delivery-plan-axis"><span>Output</span><span contenteditable="true" role="textbox" aria-label="Edit first delivery window" data-delivery-window="0">${escapeHtml(deliveryWindows[0] ?? '30 days')}</span><span contenteditable="true" role="textbox" aria-label="Edit second delivery window" data-delivery-window="1">${escapeHtml(deliveryWindows[1] ?? '60 days')}</span><span contenteditable="true" role="textbox" aria-label="Edit third delivery window" data-delivery-window="2">${escapeHtml(deliveryWindows[2] ?? '90 days')}</span></div>${groups}${remaining}</div>`;
 }
 
-function outcomeLanes(items: ProjectedItem[]): string {
-  return `<div class="pattern-outcome-lanes">${nowNextLater(items, 'outcomes')}</div>`;
+function outcomeLanes(items: ProjectedItem[], stage?: 'designed' | 'planned'): string {
+  return `<div class="outcome-actions"><button id="add-outcome" type="button">+ Add outcome</button></div><div class="pattern-outcome-lanes">${nowNextLater(items, 'outcomes', stage, true)}</div>`;
 }
 
 function matrix(items: ProjectedItem[]): string {
@@ -208,9 +250,7 @@ function dashboard(items: ProjectedItem[]): string {
 function gantt(items: ProjectedItem[]): string {
   const dated = items
     .filter((item) => item.schedule?.date !== undefined)
-    .sort((left, right) =>
-      (right.schedule?.date ?? '').localeCompare(left.schedule?.date ?? ''),
-    );
+    .sort((left, right) => (right.schedule?.date ?? '').localeCompare(left.schedule?.date ?? ''));
   const undated = items.filter((item) => item.schedule?.date === undefined);
 
   const entries = dated
@@ -299,7 +339,8 @@ function releaseTimelineStyles(): string {
 function deliveryPlanStyles(): string {
   return `
 .pattern-delivery-plan{max-width:1280px;overflow-x:auto;padding:7px;border-radius:22px;background:rgba(18,24,22,.045);box-shadow:inset 0 0 0 1px rgba(18,24,22,.035)}.delivery-plan-axis,.delivery-plan-row{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(600px,2.1fr);min-width:920px}.delivery-plan-axis{grid-template-columns:minmax(280px,.9fr) repeat(3,minmax(200px,.7fr));padding:10px 14px;color:var(--muted);font-size:.68rem;font-weight:750;text-transform:uppercase;letter-spacing:.11em}.delivery-plan-axis span:not(:first-child){text-align:center}.delivery-plan-group{margin:0 0 9px;border-radius:16px;background:rgba(252,253,252,.8);box-shadow:inset 0 0 0 1px rgba(18,24,22,.065)}.delivery-plan-group>h3{display:flex;align-items:center;justify-content:space-between;min-width:920px;margin:0;padding:13px 15px 9px;color:var(--muted);font-size:.68rem;font-weight:750;text-transform:uppercase;letter-spacing:.11em}.delivery-plan-group>h3 span{display:grid;place-items:center;min-width:23px;height:23px;border-radius:999px;background:rgba(18,24,22,.06)}.delivery-plan-row{align-items:center;min-height:58px;padding:7px 14px;box-shadow:inset 0 1px rgba(18,24,22,.055)}.delivery-plan-child .delivery-plan-label{padding-left:18px}.delivery-plan-child .delivery-plan-label::before{content:"";position:absolute;left:2px;top:50%;width:8px;height:1px;background:var(--line)}.delivery-plan-label{position:relative;display:grid;gap:3px;padding-right:16px;min-width:0}.delivery-plan-label strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.84rem}.delivery-plan-label span{color:var(--muted);font-size:.68rem}.delivery-plan-track{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;min-height:38px;border-radius:12px;background:linear-gradient(90deg,transparent calc(33.333% - 1px),var(--line) 33.333%,transparent calc(33.333% + 1px),transparent calc(66.666% - 1px),var(--line) 66.666%,transparent calc(66.666% + 1px))}.delivery-plan-bar{display:block;margin:0 8px;border-radius:999px;padding:8px 12px;overflow:hidden;text-overflow:ellipsis;color:#fff;font-size:.65rem;font-weight:800;text-align:center;text-transform:uppercase;letter-spacing:.08em;background:var(--blue);box-shadow:0 7px 18px rgba(49,95,186,.17);transition:transform 560ms var(--curve),box-shadow 560ms var(--curve)}.delivery-plan-bar:hover{transform:translateY(-2px);box-shadow:0 11px 25px rgba(49,95,186,.24)}.delivery-plan-bar.horizon-now{grid-column:1}.delivery-plan-bar.horizon-next{grid-column:2}.delivery-plan-bar.horizon-later{grid-column:3}.delivery-plan-bar.status-active{background:var(--green);box-shadow:0 7px 18px rgba(8,119,92,.17)}.delivery-plan-bar.status-blocked{background:var(--red)}.delivery-plan-bar.status-completed{background:#66706c}.delivery-plan-bar.status-proposed{background:var(--blue)}
-@media(max-width:760px){.pattern-delivery-plan{margin-inline:-4px}.delivery-plan-axis,.delivery-plan-row{grid-template-columns:minmax(230px,.9fr) minmax(570px,2.1fr);min-width:800px}.delivery-plan-axis{grid-template-columns:minmax(230px,.9fr) repeat(3,190px)}.delivery-plan-group>h3{min-width:800px}.delivery-plan-label strong{font-size:.78rem}}
+.delivery-plan-axis [contenteditable="true"]{border-radius:5px;cursor:text;outline:0}.delivery-plan-axis [contenteditable="true"]:hover{background:rgba(252,253,252,.72)}.delivery-plan-axis [contenteditable="true"]:focus{background:var(--surface);box-shadow:0 0 0 2px #f0a929}.delivery-plan-group-heading{min-width:920px;padding:13px 15px 10px}.delivery-plan-group-heading h3{display:flex;align-items:center;justify-content:space-between;margin:0;color:var(--muted);font-size:.68rem;font-weight:750;text-transform:uppercase;letter-spacing:.11em}.delivery-plan-group-heading h3 span{display:grid;place-items:center;min-width:23px;height:23px;border-radius:999px;background:rgba(18,24,22,.06)}.delivery-plan-outcomes{margin:4px 0 0;color:var(--text);font-size:.72rem}.delivery-plan-outcomes strong{color:var(--green)}.delivery-plan-outcomes-missing{color:var(--red)}
+@media(max-width:760px){.pattern-delivery-plan{margin-inline:-4px}.delivery-plan-axis,.delivery-plan-row{grid-template-columns:minmax(230px,.9fr) minmax(570px,2.1fr);min-width:800px}.delivery-plan-axis{grid-template-columns:minmax(230px,.9fr) repeat(3,190px)}.delivery-plan-group-heading{min-width:800px}.delivery-plan-label strong{font-size:.78rem}}
 `;
 }
 
@@ -311,7 +352,7 @@ html{background:#e9edeb}body{min-height:100dvh;background:var(--bg);font-family:
 .horizon-grid{grid-template-columns:repeat(12,minmax(0,1fr));align-items:start;gap:18px}.horizon-grid>.lane{grid-column:span 4;min-width:0;padding:7px;border-radius:22px;background:rgba(18,24,22,.045);box-shadow:inset 0 0 0 1px rgba(18,24,22,.035)}.lane>h3{display:flex;align-items:center;justify-content:space-between;margin:0 0 7px;padding:12px 13px 9px;font-size:.76rem;font-weight:750;text-transform:uppercase;letter-spacing:.12em}.lane-count{display:grid;place-items:center;width:24px;height:24px;border-radius:999px;background:rgba(18,24,22,.065);font-size:.7rem}.lane>.muted{padding:22px 14px 28px;margin:0}.board-card,.roadmap-card{position:relative;border:0!important;border-radius:16px;background:var(--surface);padding:16px;margin:0 0 7px;box-shadow:inset 0 0 0 1px rgba(18,24,22,.075),inset 0 1px rgba(255,255,255,.9),0 9px 24px rgba(24,38,32,.06);transition:transform 650ms var(--curve),box-shadow 650ms var(--curve)}.board-card::before,.roadmap-card::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;border-radius:16px 0 0 16px;background:var(--amber)}.board-card:hover,.roadmap-card:hover{transform:translateY(-4px);box-shadow:inset 0 0 0 1px rgba(18,24,22,.07),inset 0 1px rgba(255,255,255,.95),0 18px 42px rgba(24,38,32,.11)}.board-card.commitment-committed,.roadmap-card.commitment-committed{background:var(--soft-green)}.board-card.commitment-committed::before,.roadmap-card.commitment-committed::before{background:var(--green)}.board-card.commitment-exploratory,.roadmap-card.commitment-exploratory{background:var(--soft-blue)}.board-card.commitment-exploratory::before,.roadmap-card.commitment-exploratory::before{background:var(--blue)}.board-card.status-blocked,.roadmap-card.status-blocked{outline:0;background:var(--soft-red)}.board-card.status-blocked::before,.roadmap-card.status-blocked::before{background:var(--red)}.board-card h4{margin:14px 0 7px;font-size:1rem;line-height:1.25}.board-card p{font-size:.82rem;line-height:1.55}.board-card-top{align-items:flex-start}.commitment-label{letter-spacing:.1em}.status-label,.badge{border:0;border-radius:999px;background:rgba(252,253,252,.64);padding:4px 9px;box-shadow:inset 0 0 0 1px rgba(18,24,22,.12);font-size:.64rem}.board-card footer{padding-top:5px}.board-card code,.item-id,code{font-family:"Geist Mono","SFMono-Regular",monospace}
 .strategy-grid,.decision-grid,.evidence-grid{gap:18px}.strategy-grid>div,.decision-grid>section,.evidence-grid>section{border:0;border-radius:20px;background:rgba(252,253,252,.72);padding:24px;box-shadow:inset 0 0 0 1px rgba(18,24,22,.065),var(--shadow)}section[aria-labelledby="strategy-frame"],section[aria-labelledby="decision-summary"],#evidence-risk{margin-top:52px;border:0;padding-top:0}section[aria-labelledby="strategy-frame"]>h2,section[aria-labelledby="decision-summary"]>h2,#evidence-risk-heading{margin:0 0 20px;font-size:clamp(1.45rem,2.4vw,2.35rem);font-weight:650}.strategy-grid h3,.decision-grid h3,.evidence-grid h3{margin-top:0;font-size:.72rem;text-transform:uppercase;letter-spacing:.11em;color:var(--muted)}.rendering-notes{margin:18px 0 12px;padding:0 4px}.rendering-notes summary{width:max-content;cursor:pointer;color:var(--muted);transition:transform 500ms var(--curve),color 500ms var(--curve)}.rendering-notes summary:hover{color:var(--text);transform:translateX(3px)}.legend{gap:7px}.legend span{border:0;border-radius:999px;background:rgba(252,253,252,.74);padding:7px 11px;box-shadow:inset 0 0 0 1px rgba(18,24,22,.075);font-size:.75rem}.evidence-entry{border:0;border-radius:14px;background:rgba(252,253,252,.75);padding:14px 16px;box-shadow:inset 0 0 0 1px rgba(18,24,22,.07)}
 .metrics{gap:14px}.metrics div{border:0;border-radius:18px;padding:20px;background:var(--surface);box-shadow:inset 0 0 0 1px rgba(18,24,22,.07),var(--shadow)}.metrics dd{font-size:2.25rem}.portfolio-grid,.quarter-grid{gap:18px}.portfolio-grid>.roadmap-card:nth-child(1){grid-column:span 2}.pattern-delivery-flow{display:grid;gap:16px;max-width:980px}.delivery-group{margin:0;padding:7px;border-radius:22px;background:rgba(18,24,22,.045);box-shadow:inset 0 0 0 1px rgba(18,24,22,.035)}.delivery-group>h3{padding:12px 13px 9px;margin:0;font-weight:750;letter-spacing:.12em}.delivery-stack{gap:7px}.delivery-stack .roadmap-card{margin:0}.table-wrap{overflow:auto;border-radius:20px;padding:6px;background:rgba(18,24,22,.045);box-shadow:inset 0 0 0 1px rgba(18,24,22,.04)}table{border:0;border-radius:15px;overflow:hidden;background:var(--surface)}th,td{border:0;padding:15px 18px;box-shadow:inset 0 -1px rgba(18,24,22,.07)}.marker-path{border:0;padding:4px 0 4px 38px;counter-reset:markers}.marker-path>li{position:relative;list-style:none}.marker-path>li::before{counter-increment:markers;content:counter(markers);position:absolute;left:-38px;top:10px;display:grid;place-items:center;width:25px;height:25px;border-radius:999px;background:var(--text);color:#fff;font-size:.68rem}.timeline{gap:7px;padding:7px;border-radius:22px;background:rgba(18,24,22,.045);box-shadow:inset 0 0 0 1px rgba(18,24,22,.035)}.timeline-row{grid-template-columns:minmax(170px,.8fr) 2.2fr;gap:14px;padding:12px;border-radius:16px;background:var(--surface);box-shadow:inset 0 0 0 1px rgba(18,24,22,.065)}.timeline-bar,.timeline-marker{border:0;border-radius:999px;padding:10px 16px;background:var(--soft-green);box-shadow:inset 0 0 0 1px rgba(8,119,92,.17)}.timeline-marker{background:var(--soft-amber);box-shadow:inset 0 0 0 1px rgba(157,102,0,.18)}
-.reveal{opacity:0;transform:translateY(20px)}.reveal.is-visible{opacity:1;transform:translateY(0);transition:opacity 820ms var(--curve),transform 820ms var(--curve)}[hidden]{display:none!important}
+.reveal{opacity:0;transform:translateY(20px)}.reveal.is-visible{opacity:1;transform:translateY(0);transition:opacity 820ms var(--curve),transform 820ms var(--curve)}[hidden]{display:none!important}.board-card[draggable="true"],.roadmap-card[draggable="true"]{cursor:grab}.board-card.is-dragging,.roadmap-card.is-dragging{cursor:grabbing;opacity:.42;transform:scale(.98)}[data-drop-horizon].is-drop-target{box-shadow:inset 0 0 0 2px var(--green),0 14px 34px rgba(8,119,92,.12)}.toolbar .primary-save{background:var(--green);color:#fff;font-weight:750;box-shadow:0 9px 22px rgba(8,119,92,.24)}.toolbar .primary-save:hover{background:#075f4a;color:#fff}.toolbar button:disabled{cursor:not-allowed;opacity:.42;transform:none}.save-status{align-self:center;color:var(--muted);font-size:.72rem}.workflow-label{display:inline-flex;border-radius:999px;background:var(--soft-green);padding:4px 9px;color:var(--green);font-size:.64rem;font-weight:800;text-transform:uppercase}.outcome-actions{display:flex;justify-content:flex-end;margin:-8px 0 12px}.outcome-actions button{border:0;border-radius:999px;background:var(--surface);padding:9px 13px;box-shadow:inset 0 0 0 1px var(--line);font:inherit;font-size:.78rem;font-weight:700}.board-card [contenteditable="true"]{border-radius:4px;outline:0}.board-card [contenteditable="true"]:focus{background:rgba(255,255,255,.8);box-shadow:0 0 0 2px #f0a929}.board-card [data-placeholder]:empty::before{content:attr(data-placeholder);color:var(--muted)}
 @media(max-width:920px){header{grid-template-columns:1fr;gap:12px}header h1{grid-row:1}.metadata{justify-self:start;text-align:left}.horizon-grid{grid-template-columns:1fr}.horizon-grid>.lane{grid-column:auto}.strategy-grid,.decision-grid,.evidence-grid,.portfolio-grid,.quarter-grid,.metrics{grid-template-columns:1fr}.portfolio-grid>.roadmap-card:nth-child(1){grid-column:auto}}
 @media(max-width:760px){main{padding:20px 14px 38px}header{padding:10px 2px 24px}header h1{font-size:2.2rem}.toolbar{align-items:stretch}.toolbar label{flex:1 1 130px}.toolbar select{width:100%}.toolbar button{flex:1 1 auto}.tabs{width:100%;border-radius:18px;overflow-x:auto}.tabs button{padding:9px 12px}.tabpanel{padding-top:20px}.horizon-grid{gap:14px}.horizon-grid>.lane{padding:6px;border-radius:18px}.board-card,.roadmap-card{border-radius:13px;padding:14px}.board-card::before,.roadmap-card::before{border-radius:13px 0 0 13px}section[aria-labelledby="strategy-frame"],section[aria-labelledby="decision-summary"],#evidence-risk{margin-top:38px}.strategy-grid>div,.decision-grid>section,.evidence-grid>section{padding:19px}.timeline-row{grid-template-columns:1fr}.marker-path{padding-left:34px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}.reveal{opacity:1;transform:none}}
@@ -326,10 +367,20 @@ function script(revision: number): string {
   const panels = [...document.querySelectorAll('[role="tabpanel"]')];
   const statusFilter = document.querySelector('[data-filter="status"]');
   const horizonFilter = document.querySelector('[data-filter="horizon"]');
-  const download = document.getElementById('proposal-download');
+  const deliveryWindows = [...document.querySelectorAll('[data-delivery-window]')];
+  const defaultDeliveryWindows = deliveryWindows.map((entry) => (entry.textContent || '').trim());
+  const saveButton = document.getElementById('save-roadmap');
+  const saveStatus = document.getElementById('save-status');
+  let draggedCard = null;
   const readState = () => { try { return JSON.parse(localStorage.getItem(UI_STATE_KEY) || '{}'); } catch { return {}; } };
   const writeState = (state) => { try { localStorage.setItem(UI_STATE_KEY, JSON.stringify(state)); } catch {} };
   const clearState = () => { try { localStorage.removeItem(UI_STATE_KEY); } catch {} };
+  const updateSaveButton = () => {
+    const state = readState();
+    const changed = (state.horizonMoves && Object.keys(state.horizonMoves).length > 0) || state.deliveryWindowsChanged === true || (state.itemEdits && Object.keys(state.itemEdits).length > 0) || (Array.isArray(state.newOutcomes) && state.newOutcomes.length > 0);
+    saveButton.disabled = !changed;
+    saveStatus.textContent = changed ? 'Unsaved changes' : '';
+  };
   const showTab = (id, focus = false) => {
     tabs.forEach((tab) => { const active = tab.getAttribute('aria-controls') === id; tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1; if (active && focus) tab.focus(); });
     panels.forEach((panel) => { panel.hidden = panel.id !== id; });
@@ -346,26 +397,174 @@ function script(revision: number): string {
       }
     });
   });
+  const updateLaneCounts = () => document.querySelectorAll('[data-drop-horizon]').forEach((lane) => {
+    const count = lane.querySelectorAll(':scope > [data-item-id]').length;
+    const badge = lane.querySelector(':scope > h3 .lane-count');
+    if (badge) badge.textContent = String(count);
+    const empty = lane.querySelector(':scope > .muted');
+    if (empty) empty.hidden = count > 0;
+  });
+  const bindDraggable = (card) => {
+    card.addEventListener('dragstart', (event) => {
+      draggedCard = card;
+      card.classList.add('is-dragging');
+      if (event.dataTransfer) { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', card.dataset.itemId || ''); }
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('is-dragging');
+      document.querySelectorAll('[data-drop-horizon]').forEach((lane) => lane.classList.remove('is-drop-target'));
+      draggedCard = null;
+    });
+  };
+  document.querySelectorAll('[data-item-id][draggable="true"]').forEach(bindDraggable);
+  const bindEditable = (card) => card.querySelectorAll('[data-edit-field]').forEach((field) => {
+    field.addEventListener('input', () => {
+      const state = readState();
+      const id = card.dataset.itemId;
+      if (!id) return;
+      const title = (card.querySelector('[data-edit-field="title"]')?.textContent || '').trim();
+      const description = (card.querySelector('[data-edit-field="description"]')?.textContent || '').trim();
+      if (card.dataset.newOutcome === 'true') {
+        state.newOutcomes = (state.newOutcomes || []).map((item) => item.id === id ? { ...item, title, description, horizon: card.dataset.horizon } : item);
+      } else {
+        state.itemEdits = { ...(state.itemEdits || {}), [id]: { title, description } };
+      }
+      writeState(state);
+      updateSaveButton();
+    });
+  });
+  document.querySelectorAll('#view-outcome [data-item-id]').forEach(bindEditable);
+  document.getElementById('add-outcome')?.addEventListener('click', () => {
+    const id = 'out-browser-' + Date.now().toString(36);
+    const card = document.createElement('article');
+    card.className = 'board-card commitment-planned status-proposed';
+    card.draggable = true;
+    card.dataset.item = '';
+    card.dataset.itemId = id;
+    card.dataset.status = 'proposed';
+    card.dataset.horizon = 'now';
+    card.dataset.newOutcome = 'true';
+    card.innerHTML = '<div class="board-card-top"><span class="workflow-label">planned</span></div><h4 contenteditable="true" data-edit-field="title">New outcome</h4><p contenteditable="true" data-edit-field="description" data-placeholder="Describe the outcome"></p><footer><span>medium confidence</span><code>' + id + '</code></footer>';
+    const lane = document.querySelector('#view-outcome [data-drop-horizon="now"]');
+    if (!lane) return;
+    lane.appendChild(card);
+    bindDraggable(card);
+    bindEditable(card);
+    const state = readState();
+    state.newOutcomes = [...(state.newOutcomes || []), { id, title: 'New outcome', description: '', horizon: 'now' }];
+    writeState(state);
+    updateLaneCounts();
+    updateSaveButton();
+    card.querySelector('[data-edit-field="title"]')?.focus();
+  });
+  document.querySelectorAll('[data-drop-horizon]').forEach((lane) => {
+    lane.addEventListener('dragover', (event) => { if (draggedCard) { event.preventDefault(); lane.classList.add('is-drop-target'); if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'; } });
+    lane.addEventListener('dragleave', () => lane.classList.remove('is-drop-target'));
+    lane.addEventListener('drop', (event) => {
+      event.preventDefault();
+      lane.classList.remove('is-drop-target');
+      if (!draggedCard) return;
+      const horizon = lane.dataset.dropHorizon;
+      const itemId = draggedCard.dataset.itemId;
+      if (!horizon || !itemId) return;
+      document.querySelectorAll('[data-item-id="' + CSS.escape(itemId) + '"]').forEach((card) => {
+        const panel = card.closest('[role="tabpanel"]');
+        const destination = panel && panel.querySelector('[data-drop-horizon="' + CSS.escape(horizon) + '"]');
+        if (destination) { destination.appendChild(card); card.dataset.horizon = horizon; }
+      });
+      const nextState = readState();
+      nextState.horizonMoves = { ...(nextState.horizonMoves || {}), [itemId]: horizon };
+      writeState(nextState);
+      updateSaveButton();
+      updateLaneCounts();
+      applyFilters();
+    });
+  });
   const applyFilters = () => {
     document.querySelectorAll('[data-item]').forEach((item) => {
       const statusMatches = statusFilter.value === 'all' || item.dataset.status === statusFilter.value;
       const horizonMatches = horizonFilter.value === 'all' || item.dataset.horizon === horizonFilter.value;
       item.hidden = !(statusMatches && horizonMatches);
     });
-    writeState({ tab: document.querySelector('[role="tab"][aria-selected="true"]').getAttribute('aria-controls'), status: statusFilter.value, horizon: horizonFilter.value });
+    writeState({ ...readState(), tab: document.querySelector('[role="tab"][aria-selected="true"]').getAttribute('aria-controls'), status: statusFilter.value, horizon: horizonFilter.value });
   };
   statusFilter.addEventListener('change', applyFilters);
   horizonFilter.addEventListener('change', applyFilters);
-  document.getElementById('reset-ui').addEventListener('click', () => { clearState(); statusFilter.value = 'all'; horizonFilter.value = 'all'; showTab('view-overview'); applyFilters(); });
-  document.getElementById('export-proposal').addEventListener('click', () => {
-    const proposal = { schemaVersion: '1.0.0', roadmapRevision: ${String(revision)}, proposalOnly: true, canonicalStateChanged: false, createdAt: new Date().toISOString(), recommendations: [] };
-    if (download.href.startsWith('blob:')) URL.revokeObjectURL(download.href);
-    download.href = URL.createObjectURL(new Blob([JSON.stringify(proposal, null, 2)], { type: 'application/json' }));
-    download.click();
+  deliveryWindows.forEach((label, index) => {
+    label.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); label.blur(); } });
+    label.addEventListener('blur', () => {
+      const value = (label.textContent || '').trim().slice(0, 40) || defaultDeliveryWindows[index];
+      label.textContent = value;
+      const nextState = readState();
+      nextState.deliveryWindows = deliveryWindows.map((entry, windowIndex) => (entry.textContent || '').trim() || defaultDeliveryWindows[windowIndex]);
+      nextState.deliveryWindowsChanged = true;
+      writeState(nextState);
+      updateSaveButton();
+    });
+  });
+  document.getElementById('reset-ui').addEventListener('click', () => { clearState(); statusFilter.value = 'all'; horizonFilter.value = 'all'; deliveryWindows.forEach((label, index) => { label.textContent = defaultDeliveryWindows[index]; }); showTab('view-overview'); applyFilters(); updateSaveButton(); });
+  const saveDraft = async (draft) => {
+    saveButton.disabled = true;
+    saveStatus.textContent = 'Saving...';
+    try {
+      const response = await fetch('/api/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ roadmapRevision: ${String(revision)}, horizonMoves: draft.horizonMoves || {}, deliveryWindows: draft.deliveryWindows || defaultDeliveryWindows, itemEdits: draft.itemEdits || {}, newOutcomes: draft.newOutcomes || [] }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Save failed');
+      clearState();
+      history.replaceState(null, '', location.pathname);
+      location.reload();
+    } catch (error) {
+      saveStatus.textContent = error instanceof Error ? error.message : 'Save failed';
+      saveButton.disabled = false;
+    }
+  };
+  saveButton.addEventListener('click', async () => {
+    const draft = readState();
+    if (location.protocol === 'file:') {
+      saveStatus.textContent = 'Saving...';
+      location.href = 'http://127.0.0.1:4177/#rmp-save=' + encodeURIComponent(JSON.stringify({ horizonMoves: draft.horizonMoves || {}, deliveryWindows: draft.deliveryWindows || defaultDeliveryWindows, itemEdits: draft.itemEdits || {}, newOutcomes: draft.newOutcomes || [] }));
+      return;
+    }
+    await saveDraft(draft);
   });
   const state = readState();
   if (typeof state.status === 'string') statusFilter.value = state.status;
   if (typeof state.horizon === 'string') horizonFilter.value = state.horizon;
+  if (Array.isArray(state.deliveryWindows)) deliveryWindows.forEach((label, index) => { if (typeof state.deliveryWindows[index] === 'string' && state.deliveryWindows[index].trim()) label.textContent = state.deliveryWindows[index].slice(0, 40); });
+  if (state.itemEdits && typeof state.itemEdits === 'object') Object.entries(state.itemEdits).forEach(([itemId, edit]) => {
+    const card = document.querySelector('#view-outcome [data-item-id="' + CSS.escape(itemId) + '"]');
+    if (!card || !edit || typeof edit !== 'object') return;
+    if (typeof edit.title === 'string') card.querySelector('[data-edit-field="title"]').textContent = edit.title;
+    if (typeof edit.description === 'string') card.querySelector('[data-edit-field="description"]').textContent = edit.description;
+  });
+  if (Array.isArray(state.newOutcomes)) state.newOutcomes.forEach((item) => {
+    if (!item || typeof item.id !== 'string' || document.querySelector('[data-item-id="' + CSS.escape(item.id) + '"]')) return;
+    const card = document.createElement('article');
+    card.className = 'board-card commitment-planned status-proposed';
+    card.draggable = true;
+    card.dataset.itemId = item.id;
+    card.dataset.status = 'proposed';
+    card.dataset.horizon = item.horizon || 'now';
+    card.dataset.newOutcome = 'true';
+    card.innerHTML = '<div class="board-card-top"><span class="workflow-label">planned</span></div><h4 contenteditable="true" data-edit-field="title"></h4><p contenteditable="true" data-edit-field="description" data-placeholder="Describe the outcome"></p><footer><span>medium confidence</span><code>' + item.id + '</code></footer>';
+    card.querySelector('[data-edit-field="title"]').textContent = item.title || 'New outcome';
+    card.querySelector('[data-edit-field="description"]').textContent = item.description || '';
+    const lane = document.querySelector('#view-outcome [data-drop-horizon="' + CSS.escape(item.horizon || 'now') + '"]');
+    if (lane) { lane.appendChild(card); bindDraggable(card); bindEditable(card); }
+  });
+  if (state.horizonMoves && typeof state.horizonMoves === 'object') Object.entries(state.horizonMoves).forEach(([itemId, horizon]) => {
+    document.querySelectorAll('[data-item-id="' + CSS.escape(itemId) + '"]').forEach((card) => {
+      const panel = card.closest('[role="tabpanel"]');
+      const lane = panel && panel.querySelector('[data-drop-horizon="' + CSS.escape(String(horizon)) + '"]');
+      if (lane) { lane.appendChild(card); card.dataset.horizon = String(horizon); }
+    });
+  });
+  updateLaneCounts();
+  updateSaveButton();
+  if (location.protocol !== 'file:' && location.hash.startsWith('#rmp-save=')) {
+    try { saveDraft(JSON.parse(decodeURIComponent(location.hash.slice(10)))); }
+    catch { saveStatus.textContent = 'Could not read the saved draft'; }
+  }
   showTab(typeof state.tab === 'string' ? state.tab : 'view-overview');
   applyFilters();
   const reveals = [...document.querySelectorAll('.board-card, .roadmap-card, .strategy-grid > div, .decision-grid > section, .evidence-grid > section')];
@@ -383,37 +582,6 @@ export function renderHtml(roadmap: Roadmap, options: HtmlRenderOptions = {}): s
   const selected = options.format ?? model.format.selected;
   const frame = strategyFrame(roadmap);
   const horizon = options.horizon ?? 'Now / Next / Later';
-  const rationale =
-    options.format === undefined ? model.format.rationale : patternDescriptions[options.format];
-  const tabs = [
-    ['overview', 'Overview', 'view-overview'],
-    ['outcome', 'Outcomes', 'view-outcome'],
-    ['delivery', 'Delivery', 'view-delivery'],
-    ['release', 'Releases', 'view-release'],
-    ['dependency', 'Dependencies', 'view-dependency'],
-    ['history', 'Evidence / history', 'view-history'],
-  ] as const;
-  const configuredView = options.defaultView === 'evidence' ? 'history' : options.defaultView;
-  const defaultView = configuredView ?? 'overview';
-  const defaultPanelId = `view-${defaultView}`;
-  const panels = tabs
-    .map(([view, label, id]) => {
-      const projection = model.views[view];
-      let content: string;
-      if (view === 'overview') content = pattern(selected, projection, view);
-      else if (view === 'dependency') content = relationshipList(roadmap);
-      else if (view === 'history') content = evidenceList(roadmap);
-      else if (view === 'outcome') content = pattern('outcome-lanes', projection, view);
-      else if (view === 'release') {
-        content = pattern('gantt-release', projection, view);
-      } else content = `<div class="pattern pattern-delivery-plan" data-pattern="delivery-plan"><p class="pattern-note">Outputs are arranged as horizontal planning tracks. Horizon indicates sequence without implying unsupported dates.</p>${deliveryPlan(projection)}</div>`;
-      return `<section id="${id}" class="tabpanel" role="tabpanel" aria-labelledby="tab-${view}"${view === defaultView ? '' : ' hidden'}><h3>${label}</h3>${content}</section>`;
-    })
-    .join('');
-  const embeddedData = JSON.stringify({ revision: roadmap.revision, format: selected }).replaceAll(
-    '<',
-    '\\u003c',
-  );
   const decisionSections = [
     optionalListSection('Next actions', frame.nextActions),
     optionalListSection('Deferrals', frame.deferrals),
@@ -425,17 +593,43 @@ export function renderHtml(roadmap: Roadmap, options: HtmlRenderOptions = {}): s
       ? []
       : [`${item.signal.metric}: target ${String(item.signal.target)} ${item.signal.unit}`],
   );
-  const evidenceSections = [
-    roadmap.evidence.length === 0
-      ? ''
-      : `<section><h3>Evidence</h3>${evidenceList(roadmap)}</section>`,
+  const projectContextSections = [
     optionalListSection('Measures', measures),
     optionalListSection('Risks', frame.risks),
     optionalListSection('Assumptions', frame.assumptions),
-    roadmap.relationships.length === 0
-      ? ''
-      : `<section><h3>Dependencies</h3>${relationshipList(roadmap)}</section>`,
   ].join('');
+  const contextContent = `<section aria-labelledby="strategy-frame"><h2 id="strategy-frame">Project context</h2><div class="strategy-grid"><div><h3>Strategic anchor</h3><p>${escapeHtml(frame.anchor)}</p></div><div><h3>Current state</h3><p>${escapeHtml(frame.baseline)}</p></div></div></section>${decisionSections === '' ? '' : `<section aria-labelledby="decision-summary"><h2 id="decision-summary">Decisions and unknowns</h2><div class="decision-grid">${decisionSections}</div></section>`}${projectContextSections === '' ? '' : `<section id="evidence-risk" aria-labelledby="evidence-risk-heading"><h2 id="evidence-risk-heading">Project signals and constraints</h2><div class="evidence-grid">${projectContextSections}</div></section>`}`;
+  const tabs = [
+    ['context', 'Context', 'view-context'],
+    ['outcome', 'Outcomes', 'view-outcome'],
+    ['delivery', 'Delivery', 'view-delivery'],
+    ['release', 'Releases', 'view-release'],
+    ['dependency', 'Dependencies', 'view-dependency'],
+    ['history', 'Evidence / history', 'view-history'],
+  ] as const;
+  const configuredView = options.defaultView === 'evidence' ? 'history' : options.defaultView;
+  const defaultView = configuredView ?? 'context';
+  const defaultPanelId = `view-${defaultView}`;
+  const panels = tabs
+    .map(([view, label, id]) => {
+      const projection = view === 'context' ? model.views.overview : model.views[view];
+      let content: string;
+      if (view === 'context') content = contextContent;
+      else if (view === 'dependency') content = relationshipList(roadmap);
+      else if (view === 'history') content = evidenceList(roadmap);
+      else if (view === 'outcome')
+        content = `<div class="pattern pattern-outcome-lanes" data-pattern="outcome-lanes"><p class="pattern-note">Outcomes pair desired movement with measures and supporting work.</p>${outcomeLanes(projection.items, workflowStage(roadmap))}</div>`;
+      else if (view === 'release') {
+        content = pattern('gantt-release', projection, view);
+      } else
+        content = `<div class="pattern pattern-delivery-plan" data-pattern="delivery-plan"><p class="pattern-note">Outputs are arranged as horizontal planning tracks. Horizon indicates sequence without implying unsupported dates.</p>${deliveryPlan(projection, roadmap)}</div>`;
+      return `<section id="${id}" class="tabpanel" role="tabpanel" aria-labelledby="tab-${view}"${view === defaultView ? '' : ' hidden'}><h3>${label}</h3>${content}</section>`;
+    })
+    .join('');
+  const embeddedData = JSON.stringify({ revision: roadmap.revision, format: selected }).replaceAll(
+    '<',
+    '\\u003c',
+  );
   const activeCount = roadmap.items.filter((item) => item.status === 'active').length;
   const proposedCount = roadmap.items.filter((item) => item.status === 'proposed').length;
   const metadata = [
@@ -451,9 +645,6 @@ export function renderHtml(roadmap: Roadmap, options: HtmlRenderOptions = {}): s
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(roadmap.title)}</title><style>${styles()}${premiumStyles()}${releaseTimelineStyles()}${deliveryPlanStyles()}</style></head>
 <body><main><div class="wrap">
   <header><p class="muted">Roadmap revision ${String(model.revision)} · Schema ${escapeHtml(model.schemaVersion)}</p><h1>${escapeHtml(model.title)}</h1><p class="metadata">${metadata.map(escapeHtml).join(' · ')}</p></header>
-  <section id="roadmap-views" aria-labelledby="roadmap-heading"><h2 id="roadmap-heading">Roadmap</h2><div class="toolbar"><label>Status<select aria-label="Filter by status" data-filter="status"><option value="all">All statuses</option><option value="active">Active</option><option value="blocked">Blocked</option><option value="completed">Completed</option><option value="proposed">Proposed</option></select></label><label>Horizon<select aria-label="Filter by horizon" data-filter="horizon"><option value="all">All horizons</option><option value="now">Now</option><option value="next">Next</option><option value="later">Later</option></select></label><button id="reset-ui" type="button" aria-label="Reset local view">Reset view</button><button id="export-proposal" type="button" aria-label="Export recommendation proposal">Export proposal</button><a id="proposal-download" class="download-link" download="roadmap-proposal.json">Download proposal</a></div><div class="tabs" role="tablist" aria-label="Roadmap views">${tabs.map(([view, label, id]) => `<button id="tab-${view}" type="button" role="tab" aria-controls="${id}" aria-selected="${String(view === defaultView)}" tabindex="${view === defaultView ? '0' : '-1'}">${label}</button>`).join('')}</div>${panels}</section>
-  <section aria-labelledby="strategy-frame"><h2 id="strategy-frame">Context</h2><div class="strategy-grid"><div><h3>Strategic anchor</h3><p>${escapeHtml(frame.anchor)}</p></div><div><h3>Current state</h3><p>${escapeHtml(frame.baseline)}</p></div></div><details class="rendering-notes"><summary>View design</summary><p><strong>Format:</strong> ${escapeHtml(formatLabel(selected))}</p><p>${escapeHtml(rationale)}</p></details><div class="legend" aria-label="Commitment and confidence legend"><span>Committed</span><span>Directional bet</span><span>Exploratory option</span><span>Blocked</span><span>Confidence: high / medium / low</span></div></section>
-  ${decisionSections === '' ? '' : `<section aria-labelledby="decision-summary"><h2 id="decision-summary">Decision summary</h2><div class="decision-grid">${decisionSections}</div></section>`}
-  ${evidenceSections === '' ? '' : `<section id="evidence-risk" aria-labelledby="evidence-risk-heading"><h2 id="evidence-risk-heading">Evidence and context</h2><div class="evidence-grid">${evidenceSections}</div></section>`}
+  <section id="roadmap-views" aria-labelledby="roadmap-heading"><h2 id="roadmap-heading">Roadmap</h2><div class="toolbar"><label>Status<select aria-label="Filter by status" data-filter="status"><option value="all">All statuses</option><option value="active">Active</option><option value="blocked">Blocked</option><option value="completed">Completed</option><option value="proposed">Proposed</option></select></label><label>Horizon<select aria-label="Filter by horizon" data-filter="horizon"><option value="all">All horizons</option><option value="now">Now</option><option value="next">Next</option><option value="later">Later</option></select></label><button id="reset-ui" type="button" aria-label="Reset local view">Reset view</button><button id="save-roadmap" class="primary-save" type="button" disabled>Save roadmap</button><span id="save-status" class="save-status" role="status"></span></div><div class="tabs" role="tablist" aria-label="Roadmap views">${tabs.map(([view, label, id]) => `<button id="tab-${view}" type="button" role="tab" aria-controls="${id}" aria-selected="${String(view === defaultView)}" tabindex="${view === defaultView ? '0' : '-1'}">${label}</button>`).join('')}</div>${panels}</section>
 </div></main><script type="application/json" id="roadmap-data">${embeddedData}</script><script>${script(roadmap.revision).replaceAll('view-overview', defaultPanelId)}</script></body></html>\n`;
 }

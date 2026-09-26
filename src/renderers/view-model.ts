@@ -117,16 +117,16 @@ export function buildRoadmapViewModel(roadmap: Roadmap): RoadmapViewModel {
   });
   const outcomes = roadmap.items.filter((entry) => entry.kind === 'outcome');
   const outcomeIds = new Set(outcomes.map((entry) => entry.id));
-  const outcomeSupportIds = new Set(
-    roadmap.relationships
-      .filter((entry) => entry.type === 'supports' && outcomeIds.has(entry.to))
-      .map((entry) => entry.from),
-  );
-  const outcomeWork = roadmap.items.filter(
-    (entry) => outcomeIds.has(entry.id) || outcomeSupportIds.has(entry.id),
-  );
+  const outcomeWork = outcomes.filter((entry) => entry.status !== 'completed');
   const delivery = roadmap.items.filter(
     (entry) => entry.kind === 'deliverable' || entry.kind === 'milestone',
+  );
+  const deliveryIds = new Set(delivery.map((entry) => entry.id));
+  const deliveryView = projection(roadmap, delivery);
+  deliveryView.relationships = roadmap.relationships.filter(
+    (entry) =>
+      deliveryIds.has(entry.from) &&
+      (deliveryIds.has(entry.to) || (entry.type === 'supports' && outcomeIds.has(entry.to))),
   );
   const all = projection(roadmap, roadmap.items);
   return {
@@ -137,7 +137,7 @@ export function buildRoadmapViewModel(roadmap: Roadmap): RoadmapViewModel {
     views: {
       overview: all,
       outcome: projection(roadmap, outcomeWork),
-      delivery: projection(roadmap, delivery),
+      delivery: deliveryView,
       release: projection(roadmap, releases),
       dependency: { ...all, items: [] },
       history: { ...all, items: [], relationships: [] },

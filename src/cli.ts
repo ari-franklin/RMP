@@ -11,6 +11,7 @@ const HELP_TEXT = `Roadmap Maintenance Protocol
 Usage:
   rmp --version
   rmp --help
+  rmp serve [--root PATH] [--port 4177]
 `;
 
 export async function runCli(argv: string[] = process.argv.slice(2)): Promise<number> {

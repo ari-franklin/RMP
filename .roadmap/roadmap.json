@@ -1,0 +1,597 @@
+{
+  "evidence": [
+    {
+      "class": "deterministic",
+      "extensions": {},
+      "id": "ev-phase-01-main",
+      "observedAt": "2026-09-22T09:49:27-05:00",
+      "source": "Git commit on origin/main",
+      "sourceRef": "d2cab94b75836404bb8243e332441cdaf507b916",
+      "summary": "Phase 1 canonical contracts and protocol assets were included in the first complete RMP implementation pushed to main."
+    },
+    {
+      "class": "deterministic",
+      "extensions": {},
+      "id": "ev-mvp-plan-complete",
+      "observedAt": "2026-09-26T18:10:00Z",
+      "source": "implementation plan",
+      "sourceRef": "plans/001-roadmap-maintenance-protocol/plan.md",
+      "summary": "Phases 0-5 are marked complete and establish the tested offline-first toolkit baseline."
+    },
+    {
+      "class": "strategic",
+      "extensions": {},
+      "id": "ev-post-mvp-deferred-decisions",
+      "observedAt": "2026-09-26T18:10:00Z",
+      "source": "design document",
+      "sourceRef": "docs/design.md#deferred-decisions",
+      "summary": "The design defers provider authentication, hosted collaboration, portfolio aggregation, signed receipts, and bidirectional provider writes."
+    },
+    {
+      "class": "deterministic",
+      "extensions": {},
+      "id": "ev-self-hosted-visualization",
+      "observedAt": "2026-09-26T18:10:00Z",
+      "source": "Git commit",
+      "sourceRef": "97552b9",
+      "summary": "RMP now renders delivery as a horizontal output schedule and releases as an evidence-backed chronology, enabling its own post-MVP roadmap to use the protocol."
+    }
+  ],
+  "extensions": {
+    "rmp/strategy": {
+      "anchor": "Grow RMP from a reliable repository-local protocol into connected, collaborative roadmap infrastructure without creating a second source of truth.",
+      "assumptions": [
+        "Repositories remain the canonical owner of roadmap state.",
+        "Provider integrations can preserve provenance without storing credentials in roadmap files."
+      ],
+      "baseline": "The offline-first toolkit and visual roadmap are shipped; live provider evidence, collaboration, portfolio aggregation, and verifiable cross-machine changes remain unvalidated.",
+      "deferrals": [
+        "Provider writeback remains blocked until connected evidence and verifiable history are proven."
+      ],
+      "nextActions": [
+        "Choose the Phase 6 reference provider and validate authentication, pagination, retry, and provenance.",
+        "Define status vocabulary, visual treatment, filters, and valid transitions for every roadmap view."
+      ],
+      "openQuestions": [
+        "Which provider should be the Phase 6 reference connector?",
+        "Which collaboration jobs genuinely require a hosted service?"
+      ],
+      "risks": [
+        "Hosted collaboration could weaken repository authority or create divergent state.",
+        "Provider writeback could create irreversible or duplicated external changes."
+      ]
+    },
+    "rmp/view": {
+      "deliveryWindows": [
+        "30 days",
+        "60 days",
+        "90 days"
+      ]
+    }
+  },
+  "items": [
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Teams can see live evidence and portfolio context without replacing repository-owned canonical roadmaps.",
+      "extensions": {
+        "rmp/strategy": {
+          "anchor": "Connect roadmap evidence without creating a second source of truth"
+        }
+      },
+      "horizon": "now",
+      "id": "out-connected-roadmap-evidence",
+      "kind": "outcome",
+      "measurements": [],
+      "signal": {
+        "metric": "validated connected-evidence capability gates",
+        "target": 3,
+        "unit": "phases"
+      },
+      "status": "active",
+      "title": "Roadmap evidence connects across tools and repositories"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Shared participation and cross-machine workflows preserve authority, provenance, and reversible change.",
+      "extensions": {
+        "rmp/strategy": {
+          "anchor": "Scale collaboration while preserving verifiable roadmap history"
+        }
+      },
+      "horizon": "next",
+      "id": "out-trustworthy-collaboration",
+      "kind": "outcome",
+      "measurements": [],
+      "signal": {
+        "metric": "validated collaboration and integrity capability gates",
+        "target": 3,
+        "unit": "phases"
+      },
+      "status": "active",
+      "title": "Teams collaborate without weakening roadmap trust"
+    },
+    {
+      "commitment": "committed",
+      "confidence": "high",
+      "description": "Canonical state, evidence reconciliation, transactional writes, CLI workflows, and synchronized Markdown and HTML views.",
+      "extensions": {
+        "rmp/phase": {
+          "label": "MVP baseline",
+          "number": 5
+        }
+      },
+      "horizon": "now",
+      "id": "del-mvp-toolkit",
+      "kind": "deliverable",
+      "status": "completed",
+      "title": "Offline-first RMP toolkit"
+    },
+    {
+      "commitment": "committed",
+      "confidence": "high",
+      "description": "Phases 0-5 are complete with executable tests, packaging, recovery semantics, and documentation.",
+      "extensions": {
+        "rmp/phase": {
+          "evidence": "plans/001-roadmap-maintenance-protocol/plan.md",
+          "number": 5
+        }
+      },
+      "horizon": "now",
+      "id": "mil-mvp-package-ready",
+      "kind": "milestone",
+      "status": "completed",
+      "title": "MVP package and critical journeys are verified"
+    },
+    {
+      "commitment": "committed",
+      "confidence": "high",
+      "extensions": {
+        "rmp/phase": {
+          "commit": "d2cab94",
+          "number": 1
+        }
+      },
+      "horizon": "now",
+      "id": "rel-phase-01-canonical-contracts",
+      "kind": "release",
+      "schedule": {
+        "date": "2026-09-22",
+        "evidenceIds": [
+          "ev-phase-01-main"
+        ],
+        "precision": "exact"
+      },
+      "status": "completed",
+      "title": "Phase 1: Canonical contracts and protocol assets"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Connect GitHub, GitLab, Jira, Linear, deployment, and analytics evidence through the provider-neutral adapter contract, beginning with one reference provider.",
+      "extensions": {
+        "rmp/phase": {
+          "number": 6,
+          "validationQuestion": "Can RMP synchronize one live provider without storing credentials or weakening offline operation?"
+        }
+      },
+      "horizon": "now",
+      "id": "del-phase-06-provider-sync",
+      "kind": "deliverable",
+      "status": "active",
+      "title": "Phase 6: Live provider authentication and synchronization"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "extensions": {
+        "rmp/phase": {
+          "gate": "Reference connector",
+          "number": 6
+        }
+      },
+      "horizon": "now",
+      "id": "mil-phase-06-reference-connector",
+      "kind": "milestone",
+      "status": "proposed",
+      "title": "One authenticated provider passes pagination, retry, and provenance gates"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "extensions": {
+        "rmp/phase": {
+          "number": 6
+        }
+      },
+      "horizon": "next",
+      "id": "rel-phase-06-connected-evidence",
+      "kind": "release",
+      "schedule": {
+        "evidenceIds": [],
+        "precision": "none"
+      },
+      "status": "proposed",
+      "title": "Phase 6: Connected evidence preview"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Define how status is interpreted, displayed, filtered, and changed in Outcomes, Delivery, Releases, Dependencies, and Evidence so each view communicates the state appropriate to its purpose.",
+      "extensions": {
+        "rmp/phase": {
+          "label": "Visualization refinement",
+          "number": 6,
+          "validationQuestion": "Can each view answer what its statuses mean and which transitions are valid without exposing irrelevant workflow state?"
+        }
+      },
+      "horizon": "next",
+      "id": "del-cross-view-status-semantics",
+      "kind": "deliverable",
+      "status": "proposed",
+      "title": "Cross-view status semantics and controls"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Document and validate the vocabulary, visual treatment, filters, empty states, and proposed transitions for each view.",
+      "extensions": {
+        "rmp/phase": {
+          "gate": "View-specific status model",
+          "number": 6
+        }
+      },
+      "horizon": "next",
+      "id": "mil-cross-view-status-model",
+      "kind": "milestone",
+      "status": "proposed",
+      "title": "Every roadmap view has tested status rules and presentation criteria"
+    },
+    {
+      "commitment": "exploratory",
+      "confidence": "low",
+      "description": "Explore shared review, concurrent participation, and conflict handling while preserving the repository as the authoritative record.",
+      "extensions": {
+        "rmp/phase": {
+          "number": 7,
+          "validationQuestion": "Which collaboration jobs require hosting, and which should remain repository-native?"
+        }
+      },
+      "horizon": "next",
+      "id": "del-phase-07-hosted-collaboration",
+      "kind": "deliverable",
+      "status": "proposed",
+      "title": "Phase 7: Hosted collaboration and multi-user editing"
+    },
+    {
+      "commitment": "exploratory",
+      "confidence": "low",
+      "extensions": {
+        "rmp/phase": {
+          "gate": "Collaboration pilot",
+          "number": 7
+        }
+      },
+      "horizon": "next",
+      "id": "mil-phase-07-collaboration-pilot",
+      "kind": "milestone",
+      "status": "proposed",
+      "title": "A multi-user pilot resolves concurrent proposals without state divergence"
+    },
+    {
+      "commitment": "exploratory",
+      "confidence": "low",
+      "extensions": {
+        "rmp/phase": {
+          "number": 7
+        }
+      },
+      "horizon": "later",
+      "id": "rel-phase-07-collaboration-preview",
+      "kind": "release",
+      "schedule": {
+        "evidenceIds": [],
+        "precision": "none"
+      },
+      "status": "proposed",
+      "title": "Phase 7: Collaboration preview"
+    },
+    {
+      "commitment": "exploratory",
+      "confidence": "low",
+      "description": "Create a read model that rolls up outcomes, dependencies, confidence, and risk across repositories without replacing local canonical roadmaps.",
+      "extensions": {
+        "rmp/phase": {
+          "number": 8,
+          "validationQuestion": "What is the smallest shared contract that supports portfolio decisions without flattening repository context?"
+        }
+      },
+      "horizon": "later",
+      "id": "del-phase-08-portfolio-aggregation",
+      "kind": "deliverable",
+      "status": "proposed",
+      "title": "Phase 8: Cross-repository portfolio aggregation"
+    },
+    {
+      "commitment": "exploratory",
+      "confidence": "low",
+      "extensions": {
+        "rmp/phase": {
+          "gate": "Portfolio contract",
+          "number": 8
+        }
+      },
+      "horizon": "later",
+      "id": "mil-phase-08-portfolio-model",
+      "kind": "milestone",
+      "status": "proposed",
+      "title": "Three repository roadmaps aggregate without ID or authority conflicts"
+    },
+    {
+      "commitment": "exploratory",
+      "confidence": "low",
+      "extensions": {
+        "rmp/phase": {
+          "number": 8
+        }
+      },
+      "horizon": "later",
+      "id": "rel-phase-08-portfolio-preview",
+      "kind": "release",
+      "schedule": {
+        "evidenceIds": [],
+        "precision": "none"
+      },
+      "status": "proposed",
+      "title": "Phase 8: Portfolio preview"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Define integrity guarantees for roadmap transitions so receipts can be verified across machines, providers, and collaborative workflows.",
+      "extensions": {
+        "rmp/phase": {
+          "number": 9,
+          "validationQuestion": "Which threat model justifies signatures, and how should key ownership work?"
+        }
+      },
+      "horizon": "next",
+      "id": "del-phase-09-signed-receipts",
+      "kind": "deliverable",
+      "status": "proposed",
+      "title": "Phase 9: Signed and verifiable transition receipts"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "extensions": {
+        "rmp/phase": {
+          "gate": "Integrity contract",
+          "number": 9
+        }
+      },
+      "horizon": "next",
+      "id": "mil-phase-09-threat-model",
+      "kind": "milestone",
+      "status": "proposed",
+      "title": "Threat model and cross-machine verification format are approved"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "extensions": {
+        "rmp/phase": {
+          "number": 9
+        }
+      },
+      "horizon": "later",
+      "id": "rel-phase-09-verifiable-history",
+      "kind": "release",
+      "schedule": {
+        "evidenceIds": [],
+        "precision": "none"
+      },
+      "status": "proposed",
+      "title": "Phase 9: Verifiable history preview"
+    },
+    {
+      "commitment": "exploratory",
+      "confidence": "low",
+      "description": "Allow reviewed roadmap transitions to update external planning providers with explicit authority, idempotency, auditability, and rollback behavior.",
+      "extensions": {
+        "rmp/phase": {
+          "blockedBy": [
+            "Phase 6 provider sync",
+            "Phase 9 verifiable history"
+          ],
+          "number": 10,
+          "validationQuestion": "Which provider mutations are reversible and safe enough for RMP to perform?"
+        }
+      },
+      "horizon": "later",
+      "id": "del-phase-10-provider-writeback",
+      "kind": "deliverable",
+      "status": "blocked",
+      "title": "Phase 10: Bidirectional provider updates"
+    },
+    {
+      "commitment": "exploratory",
+      "confidence": "low",
+      "extensions": {
+        "rmp/phase": {
+          "gate": "Safe mutation",
+          "number": 10
+        }
+      },
+      "horizon": "later",
+      "id": "mil-phase-10-safe-writeback",
+      "kind": "milestone",
+      "status": "blocked",
+      "title": "One provider supports idempotent writeback with approval and rollback"
+    },
+    {
+      "commitment": "exploratory",
+      "confidence": "low",
+      "extensions": {
+        "rmp/phase": {
+          "number": 10
+        }
+      },
+      "horizon": "later",
+      "id": "rel-phase-10-bidirectional-sync",
+      "kind": "release",
+      "schedule": {
+        "evidenceIds": [],
+        "precision": "none"
+      },
+      "status": "blocked",
+      "title": "Phase 10: Bidirectional synchronization preview"
+    }
+  ],
+  "recommendations": [],
+  "relationships": [
+    {
+      "expectedImpact": "Provides the repository-native evidence baseline",
+      "from": "del-mvp-toolkit",
+      "to": "out-connected-roadmap-evidence",
+      "type": "supports"
+    },
+    {
+      "expectedImpact": "Provides conservative authority and append-only history",
+      "from": "del-mvp-toolkit",
+      "to": "out-trustworthy-collaboration",
+      "type": "supports"
+    },
+    {
+      "from": "mil-mvp-package-ready",
+      "to": "del-mvp-toolkit",
+      "type": "delivers"
+    },
+    {
+      "expectedImpact": "Brings live evidence into the existing authority model",
+      "from": "del-phase-06-provider-sync",
+      "to": "out-connected-roadmap-evidence",
+      "type": "supports"
+    },
+    {
+      "from": "mil-phase-06-reference-connector",
+      "to": "del-phase-06-provider-sync",
+      "type": "delivers"
+    },
+    {
+      "from": "rel-phase-06-connected-evidence",
+      "to": "mil-phase-06-reference-connector",
+      "type": "dependsOn"
+    },
+    {
+      "expectedImpact": "Makes roadmap state legible and consistent with the purpose of each view",
+      "from": "del-cross-view-status-semantics",
+      "to": "out-trustworthy-collaboration",
+      "type": "supports"
+    },
+    {
+      "from": "mil-cross-view-status-model",
+      "to": "del-cross-view-status-semantics",
+      "type": "delivers"
+    },
+    {
+      "expectedImpact": "Supports shared decisions without state divergence",
+      "from": "del-phase-07-hosted-collaboration",
+      "to": "out-trustworthy-collaboration",
+      "type": "supports"
+    },
+    {
+      "from": "del-phase-07-hosted-collaboration",
+      "to": "rel-phase-06-connected-evidence",
+      "type": "dependsOn"
+    },
+    {
+      "from": "mil-phase-07-collaboration-pilot",
+      "to": "del-phase-07-hosted-collaboration",
+      "type": "delivers"
+    },
+    {
+      "from": "rel-phase-07-collaboration-preview",
+      "to": "mil-phase-07-collaboration-pilot",
+      "type": "dependsOn"
+    },
+    {
+      "expectedImpact": "Makes cross-repository tradeoffs and dependencies visible",
+      "from": "del-phase-08-portfolio-aggregation",
+      "to": "out-connected-roadmap-evidence",
+      "type": "supports"
+    },
+    {
+      "from": "del-phase-08-portfolio-aggregation",
+      "to": "rel-phase-07-collaboration-preview",
+      "type": "dependsOn"
+    },
+    {
+      "from": "mil-phase-08-portfolio-model",
+      "to": "del-phase-08-portfolio-aggregation",
+      "type": "delivers"
+    },
+    {
+      "from": "rel-phase-08-portfolio-preview",
+      "to": "mil-phase-08-portfolio-model",
+      "type": "dependsOn"
+    },
+    {
+      "expectedImpact": "Preserves trust as evidence and collaboration cross machine boundaries",
+      "from": "del-phase-09-signed-receipts",
+      "to": "out-trustworthy-collaboration",
+      "type": "supports"
+    },
+    {
+      "from": "del-phase-09-signed-receipts",
+      "to": "rel-phase-06-connected-evidence",
+      "type": "dependsOn"
+    },
+    {
+      "from": "mil-phase-09-threat-model",
+      "to": "del-phase-09-signed-receipts",
+      "type": "delivers"
+    },
+    {
+      "from": "rel-phase-09-verifiable-history",
+      "to": "mil-phase-09-threat-model",
+      "type": "dependsOn"
+    },
+    {
+      "expectedImpact": "Closes the loop between accepted roadmap changes and planning providers",
+      "from": "del-phase-10-provider-writeback",
+      "to": "out-connected-roadmap-evidence",
+      "type": "supports"
+    },
+    {
+      "expectedImpact": "Applies reviewed changes with explicit authority and rollback",
+      "from": "del-phase-10-provider-writeback",
+      "to": "out-trustworthy-collaboration",
+      "type": "supports"
+    },
+    {
+      "from": "del-phase-10-provider-writeback",
+      "to": "rel-phase-06-connected-evidence",
+      "type": "dependsOn"
+    },
+    {
+      "from": "del-phase-10-provider-writeback",
+      "to": "rel-phase-09-verifiable-history",
+      "type": "dependsOn"
+    },
+    {
+      "from": "mil-phase-10-safe-writeback",
+      "to": "del-phase-10-provider-writeback",
+      "type": "delivers"
+    },
+    {
+      "from": "rel-phase-10-bidirectional-sync",
+      "to": "mil-phase-10-safe-writeback",
+      "type": "dependsOn"
+    }
+  ],
+  "revision": 4,
+  "schemaVersion": "1.0.0",
+  "title": "RMP Roadmap"
+}
