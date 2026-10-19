@@ -3,6 +3,10 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import type { Roadmap } from '../../src/types/index.js';
+
+import { runSync } from '../../src/core/run-sync.js';
+
 import { saveRoadmapChanges } from '../../src/server/index.js';
 
 const roots: string[] = [];
@@ -57,6 +61,31 @@ describe('local roadmap server', () => {
     ]);
     expect(await readFile(join(root, 'ROADMAP.md'), 'utf8')).toContain('Starter roadmap');
     expect(await readFile(join(root, '.roadmap', 'roadmap.html'), 'utf8')).toContain('This month');
+  });
+
+  it('preserves repository view settings through saving and synchronization', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'rmp-settings-'));
+    roots.push(root);
+    await mkdir(join(root, '.roadmap'), { recursive: true });
+    const roadmap = JSON.parse(await readFile('templates/roadmap.json', 'utf8')) as Roadmap;
+    roadmap.extensions['rmp/view'] = { deliveryWindows: ['A', 'B', 'C'], layout: 'compact' };
+    await writeFile(join(root, '.roadmap/roadmap.json'), JSON.stringify(roadmap));
+    const config = JSON.stringify({ views: { default: 'delivery' } });
+    await writeFile(join(root, '.roadmap/config.json'), config);
+
+    const saved = await saveRoadmapChanges(root, {
+      roadmapRevision: 0,
+      deliveryWindows: ['This week', 'Next week', 'Later'],
+    });
+    expect(saved.extensions['rmp/view']).toEqual({
+      deliveryWindows: ['This week', 'Next week', 'Later'],
+      layout: 'compact',
+    });
+    const savedHtml = await readFile(join(root, '.roadmap/roadmap.html'), 'utf8');
+    expect(savedHtml).toMatch(/id="tab-delivery"[^>]+aria-selected="true"/);
+    await runSync({ root, mode: 'sync', adapters: [] });
+    expect(await readFile(join(root, '.roadmap/roadmap.html'), 'utf8')).toBe(savedHtml);
+    expect(await readFile(join(root, '.roadmap/config.json'), 'utf8')).toBe(config);
   });
 
   it('rejects stale saves', async () => {

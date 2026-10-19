@@ -37,9 +37,7 @@ const state: Roadmap = {
   extensions: {},
 };
 
-test('supports offline keyboard navigation, filtering, reset, and proposal export', async ({
-  page,
-}) => {
+test('supports offline keyboard navigation and filtering', async ({ page }) => {
   let requests = 0;
   await page.route('**/*', async (route) => {
     requests += 1;
@@ -55,14 +53,12 @@ test('supports offline keyboard navigation, filtering, reset, and proposal expor
     'true',
   );
 
+  await outcomeTab.click();
   await page.getByRole('combobox', { name: 'Filter by status' }).selectOption('completed');
   await expect(page.locator('[role="tabpanel"]:not([hidden]) [data-item]:visible')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Reset local view' }).click();
-  await expect(page.locator('[role="tabpanel"]:not([hidden]) [data-item]:visible')).toHaveCount(2);
+  await page.getByRole('combobox', { name: 'Filter by status' }).selectOption('all');
+  await expect(page.locator('[role="tabpanel"]:not([hidden]) [data-item]:visible')).toHaveCount(1);
 
-  await page.getByRole('button', { name: 'Export recommendation proposal' }).click();
-  const download = page.locator('a[download]');
-  expect(await download.getAttribute('href')).toMatch(/^blob:/);
   expect(requests).toBe(0);
 });
 
@@ -76,4 +72,86 @@ test('stacks without horizontal overflow on mobile and exposes print styles', as
   expect(
     await page.evaluate<boolean>("document.documentElement.innerHTML.includes('@media print')"),
   ).toBe(true);
+});
+
+test('keeps view preferences across revisions without replaying stale drafts', async ({ page }) => {
+  let revision = 4;
+  await page.route('http://rmp.test/**', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: renderHtml({ ...state, revision }, { stateScope: 'repo-a' }),
+    }),
+  );
+  await page.goto('http://rmp.test/');
+  await page.getByRole('tab', { name: 'Delivery', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Edit first delivery window' }).fill('Unsaved draft');
+  await page.getByRole('combobox', { name: 'Filter by status' }).selectOption('active');
+  await page.getByRole('combobox', { name: 'Filter by horizon' }).selectOption('now');
+  revision += 1;
+  await page.reload();
+  await expect(page.getByRole('tab', { name: 'Delivery', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByRole('combobox', { name: 'Filter by status' })).toHaveValue('active');
+  await expect(page.getByRole('combobox', { name: 'Filter by horizon' })).toHaveValue('now');
+  await expect(page.getByRole('textbox', { name: 'Edit first delivery window' })).toHaveText(
+    '30 days',
+  );
+  await expect(page.getByRole('button', { name: 'Save roadmap', exact: true })).toBeDisabled();
+});
+
+test('isolates preferences between repositories served at the same URL', async ({ page }) => {
+  let scope = 'repo-a';
+  await page.route('http://rmp.test/**', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: renderHtml(state, { stateScope: scope, defaultView: 'outcome' }),
+    }),
+  );
+  await page.goto('http://rmp.test/');
+  await page.getByRole('tab', { name: 'Delivery', exact: true }).click();
+  scope = 'repo-b';
+  await page.reload();
+  await expect(page.getByRole('tab', { name: 'Outcomes', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  scope = 'repo-a';
+  await page.reload();
+  await expect(page.getByRole('tab', { name: 'Delivery', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+});
+
+test('saving a draft keeps tab and filter preferences after reload', async ({ page }) => {
+  let revision = 4;
+  await page.route('http://rmp.test/**', async (route) => {
+    if (route.request().method() === 'POST') {
+      revision += 1;
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, revision }),
+      });
+    } else {
+      await route.fulfill({
+        contentType: 'text/html',
+        body: renderHtml({ ...state, revision }, { stateScope: 'repo-save' }),
+      });
+    }
+  });
+  await page.goto('http://rmp.test/');
+  await page.getByRole('tab', { name: 'Delivery', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Filter by status' }).selectOption('active');
+  await page.getByRole('textbox', { name: 'Edit first delivery window' }).fill('This week');
+  await page.getByRole('textbox', { name: 'Edit first delivery window' }).press('Enter');
+  await page.getByRole('button', { name: 'Save roadmap', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-revision', '5');
+  await expect(page.getByRole('tab', { name: 'Delivery', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByRole('combobox', { name: 'Filter by status' })).toHaveValue('active');
+  await expect(page.getByRole('button', { name: 'Save roadmap', exact: true })).toBeDisabled();
 });

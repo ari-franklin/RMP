@@ -1,7 +1,9 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+
+import { loadConfig } from '../config/index.js';
 
 import { renderHtml, renderMarkdown } from '../renderers/index.js';
 import { validateRoadmap } from '../schemas/index.js';
@@ -147,7 +149,10 @@ function applySave(roadmap: Roadmap, input: SaveRequest): Roadmap {
     extensions:
       deliveryWindows === undefined
         ? roadmap.extensions
-        : { ...roadmap.extensions, 'rmp/view': { deliveryWindows } },
+        : {
+            ...roadmap.extensions,
+            'rmp/view': { ...roadmap.extensions['rmp/view'], deliveryWindows },
+          },
   };
 }
 
@@ -164,9 +169,23 @@ export async function saveRoadmapChanges(
   const validated = validateRoadmap(updated);
   if (!validated.valid)
     throw new Error(validated.diagnostics[0]?.message ?? 'Updated roadmap is invalid');
+  const configText = await readFile(join(root, '.roadmap', 'config.json'), 'utf8').catch(
+    (error: unknown) => {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return '{}';
+      throw error;
+    },
+  );
+  const config = loadConfig(JSON.parse(configText) as unknown);
+  if (!config.valid) throw new Error('Invalid repository configuration');
   await new RepositoryTransaction(root).commit([
     { path: '.roadmap/roadmap.json', content: canonicalJson(validated.value) },
-    { path: '.roadmap/roadmap.html', content: renderHtml(validated.value) },
+    {
+      path: '.roadmap/roadmap.html',
+      content: renderHtml(validated.value, {
+        defaultView: config.config.views.default,
+        stateScope: resolve(root),
+      }),
+    },
     { path: 'ROADMAP.md', content: renderMarkdown(validated.value) },
   ]);
   return validated.value;

@@ -1,8 +1,11 @@
+import { createHash } from 'node:crypto';
+
 import type { RoadmapFormat } from '../formats/index.js';
 import type { Roadmap, RoadmapItem } from '../types/index.js';
 import { buildRoadmapViewModel, type ProjectedItem, type RoadmapProjection } from './view-model.js';
 
 export interface HtmlRenderOptions {
+  stateScope?: string;
   audience?: string;
   horizon?: string;
   decision?: string;
@@ -380,9 +383,13 @@ html{background:#e9edeb}body{min-height:100dvh;background:var(--bg);font-family:
 `;
 }
 
-function script(revision: number): string {
+function script(revision: number, stateScope?: string): string {
+  const scope =
+    stateScope === undefined ? null : createHash('sha256').update(stateScope).digest('hex');
   return `(() => {
-  const UI_STATE_KEY = 'rmp-ui-state-v2-${String(revision)}';
+  const scope = ${JSON.stringify(scope)} || location.pathname;
+  const PREFERENCES_KEY = 'rmp-ui-preferences-v3-' + scope;
+  const UI_STATE_KEY = 'rmp-ui-draft-v3-' + scope + '-${String(revision)}';
   const tabs = [...document.querySelectorAll('[role="tab"]')];
   const panels = [...document.querySelectorAll('[role="tabpanel"]')];
   const statusFilter = document.querySelector('[data-filter="status"]');
@@ -393,8 +400,12 @@ function script(revision: number): string {
   const saveButton = document.getElementById('save-roadmap');
   const saveStatus = document.getElementById('save-status');
   let draggedCard = null;
-  const readState = () => { try { return JSON.parse(localStorage.getItem(UI_STATE_KEY) || '{}'); } catch { return {}; } };
-  const writeState = (state) => { try { localStorage.setItem(UI_STATE_KEY, JSON.stringify(state)); } catch {} };
+  const readStored = (key) => { try { const value = JSON.parse(localStorage.getItem(key) || '{}'); return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; } catch { return {}; } };
+  const readState = () => ({ ...readStored(PREFERENCES_KEY), ...readStored(UI_STATE_KEY) });
+  const writeState = (state) => {
+    const { tab, status, horizon, ...draft } = state;
+    try { localStorage.setItem(PREFERENCES_KEY, JSON.stringify({ tab, status, horizon })); localStorage.setItem(UI_STATE_KEY, JSON.stringify(draft)); } catch {}
+  };
   const clearState = () => { try { localStorage.removeItem(UI_STATE_KEY); } catch {} };
   const pushUndo = () => {
     const state = readState();
@@ -410,6 +421,7 @@ function script(revision: number): string {
     saveStatus.textContent = changed ? 'Unsaved changes' : '';
   };
   const showTab = (id, focus = false) => {
+    if (!panels.some((panel) => panel.id === id)) id = 'view-overview';
     tabs.forEach((tab) => { const active = tab.getAttribute('aria-controls') === id; tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1; if (active && focus) tab.focus(); });
     panels.forEach((panel) => { panel.hidden = panel.id !== id; });
     const state = readState(); state.tab = id; writeState(state);
@@ -694,5 +706,5 @@ export function renderHtml(roadmap: Roadmap, options: HtmlRenderOptions = {}): s
 <body><main><div class="wrap">
   <header><p class="muted">Roadmap revision ${String(model.revision)} · Schema ${escapeHtml(model.schemaVersion)}</p><h1>${escapeHtml(model.title)}</h1><p class="metadata">${metadata.map(escapeHtml).join(' · ')}</p></header>
   <section id="roadmap-views" aria-labelledby="roadmap-heading"><h2 id="roadmap-heading">Roadmap</h2><div class="toolbar"><label>Status<select aria-label="Filter by status" data-filter="status"><option value="all">All statuses</option><option value="active">Active</option><option value="blocked">Blocked</option><option value="completed">Completed</option><option value="proposed">Proposed</option></select></label><label>Horizon<select aria-label="Filter by horizon" data-filter="horizon"><option value="all">All horizons</option><option value="now">Now</option><option value="next">Next</option><option value="later">Later</option></select></label><button id="undo-change" type="button" aria-label="Undo last change" disabled>Undo</button><button id="save-roadmap" class="primary-save" type="button" disabled>Save roadmap</button><span id="save-status" class="save-status" role="status"></span></div><div class="tabs" role="tablist" aria-label="Roadmap views">${tabs.map(([view, label, id]) => `<button id="tab-${view}" type="button" role="tab" aria-controls="${id}" aria-selected="${String(view === defaultView)}" tabindex="${view === defaultView ? '0' : '-1'}">${label}</button>`).join('')}</div>${panels}</section>
-</div></main><script type="application/json" id="roadmap-data">${embeddedData}</script><script>${script(roadmap.revision).replaceAll('view-overview', defaultPanelId)}</script></body></html>\n`;
+</div></main><script type="application/json" id="roadmap-data">${embeddedData}</script><script>${script(roadmap.revision, options.stateScope).replaceAll('view-overview', defaultPanelId)}</script></body></html>\n`;
 }

@@ -141,7 +141,8 @@ describe('renderHtml', () => {
     expect(html).toMatch(/id="tab-context"[^>]+aria-selected="true"/);
     expect(html).toContain('id="view-context"');
     expect(html).toContain("showTab(typeof state.tab === 'string' ? state.tab : 'view-context')");
-    expect(html).toContain(`rmp-ui-state-v2-${String(roadmap().revision)}`);
+    expect(html).toContain('rmp-ui-preferences-v3-');
+    expect(html).toContain("'rmp-ui-draft-v3-' + scope + '-12'");
     expect(html).toContain("event.key === 'ArrowRight'");
     expect(html.indexOf('id="roadmap-views"')).toBeLessThan(html.indexOf('id="evidence-risk"'));
     expect(html.indexOf('id="roadmap-views"')).toBeLessThan(html.indexOf('id="strategy-frame"'));

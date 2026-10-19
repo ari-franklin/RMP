@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import {
   AdapterRegistry,
@@ -195,7 +195,10 @@ export async function runSync(options: RunSyncOptions): Promise<RunSyncResult> {
         path: '.roadmap/roadmap.html',
         content:
           options.renderHtml === undefined
-            ? defaultRenderHtml(reconciled.roadmap, { defaultView: config.config.views.default })
+            ? defaultRenderHtml(reconciled.roadmap, {
+                defaultView: config.config.views.default,
+                stateScope: resolve(options.root),
+              })
             : options.renderHtml(reconciled.roadmap),
       });
     }
