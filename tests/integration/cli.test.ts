@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { resolve } from 'node:path';
 
 import { executeCli, type CommandDependencies } from '../../src/commands/index.js';
 import type { RunSyncOptions } from '../../src/core/index.js';
@@ -46,7 +47,9 @@ describe('executeCli', () => {
     const result = await executeCli([command, '--root', '/repo'], deps);
 
     expect(result.exitCode).toBe(0);
-    expect(deps.sync).toHaveBeenCalledWith(expect.objectContaining({ root: '/repo', mode }));
+    expect(deps.sync).toHaveBeenCalledWith(
+      expect.objectContaining({ root: resolve('/repo'), mode }),
+    );
   });
 
   it('routes init options and validate', async () => {
@@ -61,7 +64,11 @@ describe('executeCli', () => {
       ).exitCode,
     ).toBe(0);
     expect(deps.install).toHaveBeenCalledWith(
-      expect.objectContaining({ root: '/repo', interactive: false, acceptAgentsUpdate: true }),
+      expect.objectContaining({
+        root: resolve('/repo'),
+        interactive: false,
+        acceptAgentsUpdate: true,
+      }),
     );
     expect((await executeCli(['validate', '--root', '/repo'], deps)).exitCode).toBe(0);
   });
@@ -121,5 +128,40 @@ describe('executeCli', () => {
 
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain('Unknown option');
+  });
+});
+
+describe('CLI boundary handling', () => {
+  it.each(['0', '65536', '1.5', 'abc'])('rejects invalid server port %s', async (port) => {
+    const deps = dependencies();
+    deps.serve = vi.fn();
+    expect((await executeCli(['serve', '--port', port], deps)).exitCode).toBe(2);
+    expect(deps.serve).not.toHaveBeenCalled();
+  });
+  it('passes an explicit port or leaves the server default intact', async () => {
+    const deps = dependencies();
+    deps.serve = vi.fn(() => Promise.resolve({ url: 'http://127.0.0.1:4177' }));
+    expect((await executeCli(['serve'], deps)).exitCode).toBe(0);
+    expect(deps.serve).toHaveBeenLastCalledWith({ root: process.cwd() });
+    const result = await executeCli(['serve', '--port', '8080', '--json'], deps);
+    expect(deps.serve).toHaveBeenLastCalledWith({ root: process.cwd(), port: 8080 });
+    expect(JSON.parse(result.stdout)).toMatchObject({ result: { url: 'http://127.0.0.1:4177' } });
+  });
+  it('reports missing commands and validation diagnostics safely', async () => {
+    expect((await executeCli([], dependencies())).stderr).toContain('(missing)');
+    const deps = dependencies();
+    vi.mocked(deps.validate).mockResolvedValue({ valid: false, diagnostics: [] });
+    expect((await executeCli(['validate'], deps)).stderr).toBe('Validation failed\n');
+    vi.mocked(deps.sync).mockRejectedValue('untyped failure');
+    expect((await executeCli(['sync'], deps)).stderr).toBe('Command failed\n');
+  });
+  it('defaults init to interactive without accepting instruction changes', async () => {
+    const deps = dependencies();
+    expect((await executeCli(['init'], deps)).exitCode).toBe(0);
+    expect(deps.install).toHaveBeenCalledWith({
+      root: process.cwd(),
+      interactive: true,
+      acceptAgentsUpdate: false,
+    });
   });
 });
