@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { npmCliPath } from '../helpers/npm.js';
 
 const execFileAsync = promisify(execFile);
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const npmExecutable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 export interface PackedFixture {
   root: string;
@@ -31,31 +31,28 @@ export async function run(
 export async function createPackedFixture(): Promise<PackedFixture> {
   const packageRoot = await mkdtemp(join(tmpdir(), 'rmp-package-'));
   const root = await mkdtemp(join(tmpdir(), 'rmp-repository-'));
-  await run(npmExecutable, ['run', 'build'], projectRoot);
+  await run(process.execPath, [npmCliPath(), 'run', 'build'], projectRoot);
   const packed = await run(
-    npmExecutable,
-    ['pack', '--json', '--pack-destination', packageRoot],
+    process.execPath,
+    [npmCliPath(), 'pack', '--json', '--pack-destination', packageRoot],
     projectRoot,
   );
   const packResults = JSON.parse(packed.stdout) as Array<{ filename: string }>;
   const filename = packResults[0]?.filename;
   if (filename === undefined) throw new Error('npm pack did not produce a package artifact');
   const tarball = join(packageRoot, filename);
+  // Installation may fetch dependency metadata on a fresh runner. CLI execution
+  // remains local; it must not depend on a pre-warmed developer npm cache.
   await run(
-    npmExecutable,
-    ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', tarball],
+    process.execPath,
+    [npmCliPath(), 'install', '--ignore-scripts', '--no-audit', '--no-fund', tarball],
     packageRoot,
   );
   return {
     root,
     packageRoot,
     tarball,
-    cli: join(
-      packageRoot,
-      'node_modules',
-      '.bin',
-      process.platform === 'win32' ? 'rmp.cmd' : 'rmp',
-    ),
+    cli: join(packageRoot, 'node_modules', 'roadmap-maintenance-protocol', 'dist', 'cli.js'),
   };
 }
 
@@ -63,7 +60,7 @@ export async function runCli(
   fixture: PackedFixture,
   args: string[],
 ): Promise<{ stdout: string; stderr: string }> {
-  return run(fixture.cli, [...args, '--root', fixture.root], fixture.root);
+  return run(process.execPath, [fixture.cli, ...args, '--root', fixture.root], fixture.root);
 }
 
 export async function readRoadmap(root: string): Promise<Record<string, unknown>> {
