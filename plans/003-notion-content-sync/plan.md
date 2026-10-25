@@ -817,3 +817,13 @@ contender's timeout check. Both live-owner tests now hold ownership until an
 explicit parent release signal, released in `finally`. They still verify rejection
 while the owner is alive, without relying on machine speed. No lock implementation
 change was needed.
+
+The next run revealed an actual Windows lock-publication error: atomic replacement
+can return EPERM while another process reads the existing ticket. Publication now
+retries only EPERM/EACCES/EBUSY within the existing operation deadline, respecting
+cancellation and never deleting another owner's ticket. Five targeted tests verify
+transient recovery, bounded permanent failure/cleanup, and unrelated error handling.
+Behavioral RED was observed before the fix. Fresh verification: 350 tests in 40
+files, nine E2E tests, lint/format/types/build pass; global S/B/F/L coverage is
+92.62/87.71/91.15/94.19 percent. Lock module coverage remains above 80% in all four
+measures. The final cross-platform CI run will verify Windows behavior.

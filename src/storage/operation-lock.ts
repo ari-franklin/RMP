@@ -40,7 +40,20 @@ export async function withRepositoryOperation<T>(
   const deadline = Date.now() + (options.timeoutMs ?? 10000);
   const publish = async () => {
     await writeFile(staged, JSON.stringify(ticket), { mode: 0o600 });
-    await rename(staged, path);
+    // Windows can briefly deny replacement while another contender reads the
+    // destination. Retry only our own publication; never remove another owner.
+    for (;;) {
+      if (options.signal?.aborted) throw new Error('Repository operation aborted');
+      try {
+        await rename(staged, path);
+        return;
+      } catch (error) {
+        if (!['EPERM', 'EACCES', 'EBUSY'].includes((error as NodeJS.ErrnoException).code ?? ''))
+          throw error;
+        if (Date.now() >= deadline) throw new Error('Repository operation lock busy; retry');
+        await delay(10);
+      }
+    }
   };
   const scan = async () => {
     const entries: Ticket[] = [];
