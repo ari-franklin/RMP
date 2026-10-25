@@ -1,4 +1,13 @@
-import { access, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import {
+  access,
+  mkdtemp,
+  readFile,
+  writeFile,
+  readdir,
+  rm,
+  mkdir,
+  symlink,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -88,11 +97,13 @@ describe('RepositoryTransaction', () => {
           events.push('first-staged');
           await new Promise((resolve) => setTimeout(resolve, 20));
         }
+        if (point === 'after-commit') events.push('first-committed');
       },
     });
     const second = new RepositoryTransaction(root, {
       fault: (point) => {
         if (point === 'after-stage') events.push('second-staged');
+        if (point === 'after-commit') events.push('second-committed');
       },
     });
 
@@ -101,7 +112,71 @@ describe('RepositoryTransaction', () => {
       second.commit([{ path: 'a.txt', content: 'second' }]),
     ]);
 
-    expect(events).toEqual(['first-staged', 'second-staged']);
-    expect(await readFile(join(root, 'a.txt'), 'utf8')).toBe('second');
+    const order = events[0] === 'first-staged' ? ['first', 'second'] : ['second', 'first'];
+    expect(events).toEqual(order.flatMap((name) => [name + '-staged', name + '-committed']));
+    expect(await readFile(join(root, 'a.txt'), 'utf8')).toBe(order[1]);
   });
+});
+
+describe('recovery at individual replacement boundaries', () => {
+  it.each(['after-manifest', 'after-backup-file', 'before-replace', 'after-commit'] as const)(
+    'recovers interruption at %s without losing untouched originals',
+    async (point) => {
+      const root = await fixture();
+      const tx = new RepositoryTransaction(root, {
+        preserveOnFailure: true,
+        fault: (at) => {
+          if (at === point) throw new Error('interrupted');
+        },
+      });
+      await expect(
+        tx.commit([
+          { path: 'a.txt', content: 'new-a' },
+          { path: 'b.txt', content: 'new-b' },
+          { path: 'c.txt', content: 'new-c' },
+        ]),
+      ).rejects.toThrow('interrupted');
+      await new RepositoryTransaction(root).recover();
+      expect(await readFile(join(root, 'a.txt'), 'utf8')).toBe(
+        point === 'after-commit' ? 'new-a' : 'old-a',
+      );
+      expect(await readFile(join(root, 'b.txt'), 'utf8')).toBe(
+        point === 'after-commit' ? 'new-b' : 'old-b',
+      );
+      if (point !== 'after-commit') await expect(access(join(root, 'c.txt'))).rejects.toThrow();
+    },
+  );
+});
+
+it('never rolls back a committed generation after cleanup has partially removed its marker', async () => {
+  const root = await fixture();
+  const tx = new RepositoryTransaction(root, {
+    preserveOnFailure: true,
+    fault: (point) => {
+      if (point === 'after-commit') throw new Error('interrupted');
+    },
+  });
+  await expect(
+    tx.commit([
+      { path: 'a.txt', content: 'new-a' },
+      { path: 'b.txt', content: 'new-b' },
+    ]),
+  ).rejects.toThrow();
+  const container = join(root, '.rmp-transactions');
+  const [directory] = await readdir(container);
+  if (!directory) throw new Error('Missing recovery state');
+  await rm(join(container, directory, 'committed'), { force: true });
+  await new RepositoryTransaction(root).recover();
+  expect(await readFile(join(root, 'a.txt'), 'utf8')).toBe('new-a');
+  expect(await readFile(join(root, 'b.txt'), 'utf8')).toBe('new-b');
+});
+
+it('rejects a recovery directory symlink without removing external files', async () => {
+  const root = await fixture();
+  const outside = await mkdtemp(join(tmpdir(), 'rmp-outside-recovery-'));
+  await mkdir(join(outside, 'keep'));
+  await writeFile(join(outside, 'keep/file'), 'safe');
+  await symlink(outside, join(root, '.rmp-transactions'), 'junction');
+  await expect(new RepositoryTransaction(root).recover()).rejects.toThrow(/symlink/i);
+  expect(await readFile(join(outside, 'keep/file'), 'utf8')).toBe('safe');
 });

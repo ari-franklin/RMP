@@ -1,3 +1,4 @@
+import { sourceHealthMessage } from '../core/source-health.js';
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -89,6 +90,7 @@ export async function executeCli(
       options: {
         root: { type: 'string' },
         json: { type: 'boolean' },
+        offline: { type: 'boolean' },
         'dry-run': { type: 'boolean' },
         'non-interactive': { type: 'boolean' },
         'accept-agents-update': { type: 'boolean' },
@@ -131,10 +133,20 @@ export async function executeCli(
     const result = await dependencies.sync({
       root,
       mode: command,
+      ...(values.offline === undefined ? {} : { offline: values.offline }),
       dryRun: values['dry-run'] ?? false,
       format: format as NonNullable<RunSyncOptions['format']>,
     });
-    return success(command, result, json);
+    const output = success(command, result, json);
+    if (result.degraded) output.exitCode = 1;
+    if (result.sourceHealth && !json) {
+      const message = sourceHealthMessage(result.sourceHealth) + '\n';
+      if (result.degraded) {
+        output.stdout = '';
+        output.stderr = message;
+      } else output.stdout += message;
+    }
+    return output;
   } catch (error) {
     if (error instanceof TypeError) return usage(error.message);
     return {

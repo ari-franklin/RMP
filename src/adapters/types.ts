@@ -59,6 +59,7 @@ export interface AdapterDiagnostic {
 }
 
 export interface AdapterCollection {
+  source?: import('./notion.js').NotionCollectionResult;
   evidence: NormalizedEvidence[];
   diagnostics: AdapterDiagnostic[];
   cursor?: AdapterCursor;
@@ -70,6 +71,7 @@ export interface Adapter {
 }
 
 export interface RegistryCollection {
+  sources?: import('./notion.js').NotionCollectionResult[];
   evidence: NormalizedEvidence[];
   diagnostics: AdapterDiagnostic[];
   cursors: Record<string, AdapterCursor | undefined>;

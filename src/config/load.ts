@@ -1,3 +1,4 @@
+import { withNotionDefaults } from './notion.js';
 import { diagnosticsFromAjv, validateConfigSchema } from '../schemas/index.js';
 import type { RmpConfig, ValidationDiagnostic } from '../types/index.js';
 import { defaultConfig } from './defaults.js';
@@ -20,7 +21,13 @@ export function loadConfig(value: unknown): ConfigLoadResult {
       ...input,
       authority: { ...defaultConfig.authority, ...input.authority },
       views: { ...defaultConfig.views, ...input.views },
-      adapters: { ...defaultConfig.adapters, ...input.adapters },
+      adapters: {
+        ...defaultConfig.adapters,
+        ...input.adapters,
+        ...(input.adapters?.notion === undefined
+          ? {}
+          : { notion: withNotionDefaults(input.adapters.notion) }),
+      },
       extensions: { ...defaultConfig.extensions, ...input.extensions },
     },
   };

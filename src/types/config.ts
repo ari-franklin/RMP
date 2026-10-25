@@ -1,3 +1,4 @@
+import type { NotionConfig } from '../config/notion.js';
 import type { EvidenceClass } from './domain.js';
 
 export type AuthorityDisposition = 'automatic' | 'recommendation' | 'approval';
@@ -10,6 +11,7 @@ export interface RmpConfig {
   };
   adapters: {
     enabled: string[];
+    notion?: NotionConfig;
   };
   extensions: Record<string, Record<string, unknown>>;
 }

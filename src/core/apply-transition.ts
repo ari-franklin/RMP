@@ -1,3 +1,6 @@
+import { evaluateNotionMirrorAuthority, type NotionMirrorContext } from './evaluate-authority.js';
+import { canonicalJson } from '../utils/json.js';
+import type { RmpConfig } from '../types/index.js';
 import type { Evidence, Roadmap, RoadmapStatus, TransitionReceipt } from '../types/index.js';
 import { contentId } from '../utils/ids.js';
 
@@ -12,6 +15,8 @@ export interface ApplyTransitionInput {
   disposition?: TransitionReceipt['disposition'];
   rationale?: string;
   supersedes?: string;
+  sourceMirror?: NotionMirrorContext;
+  config?: RmpConfig;
 }
 
 const forwardTransitions: Record<RoadmapStatus, ReadonlySet<RoadmapStatus>> = {
@@ -30,6 +35,27 @@ export function applyTransition(input: ApplyTransitionInput): {
   if (!item) throw new Error(`Roadmap item not found: ${input.itemId}`);
   if (input.evidence.length === 0) throw new Error('A transition requires evidence');
 
+  let isSourceMirror = false;
+  if (input.sourceMirror) {
+    if (
+      !input.config ||
+      canonicalJson(input.roadmap.extensions['content/notion-workflow']) !==
+        canonicalJson(input.sourceMirror.policy)
+    )
+      throw new Error('Source mirror requires the registered workflow policy');
+    isSourceMirror = input.evidence.every(
+      (evidence) =>
+        evaluateNotionMirrorAuthority({
+          item,
+          evidence,
+          proposedStatus: input.newStatus,
+          matchKind: 'explicit',
+          config: input.config as RmpConfig,
+          sourceMirror: input.sourceMirror as NotionMirrorContext,
+        }).disposition === 'automatic',
+    );
+    if (!isSourceMirror) throw new Error('Source mirror requires review');
+  }
   const isReversal = input.supersedes !== undefined;
   const isObservedReleaseCompletion =
     item.kind === 'release' &&
@@ -39,7 +65,8 @@ export function applyTransition(input: ApplyTransitionInput): {
   if (
     !forwardTransitions[item.status].has(input.newStatus) &&
     !isReversal &&
-    !isObservedReleaseCompletion
+    !isObservedReleaseCompletion &&
+    !isSourceMirror
   ) {
     throw new Error(`Illegal transition from ${item.status} to ${input.newStatus}`);
   }

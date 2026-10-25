@@ -1,3 +1,4 @@
+import { withRepositoryOperation } from './operation-lock.js';
 import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 
@@ -5,7 +6,14 @@ import { nodeFileSystem, pathExists, type FileSystemPort } from '../utils/files.
 import { canonicalJson } from '../utils/json.js';
 import { resolveRepositoryPath } from '../utils/paths.js';
 
-export type TransactionFault = 'after-stage' | 'after-backup' | 'after-replace';
+export type TransactionFault =
+  | 'after-stage'
+  | 'after-backup'
+  | 'after-replace'
+  | 'after-manifest'
+  | 'after-backup-file'
+  | 'before-replace'
+  | 'after-commit';
 
 export interface TransactionWrite {
   path: string;
@@ -48,14 +56,18 @@ export class RepositoryTransaction {
     writes: readonly TransactionWrite[],
     options: CommitOptions = {},
   ): Promise<void> {
-    await this.serialized(async () => {
-      await this.recoverUnlocked();
-      await this.commitUnlocked(writes, options);
-    });
+    await withRepositoryOperation(this.repositoryRoot, () =>
+      this.serialized(async () => {
+        await this.recoverUnlocked();
+        await this.commitUnlocked(writes, options);
+      }),
+    );
   }
 
   public async recover(): Promise<void> {
-    await this.serialized(() => this.recoverUnlocked());
+    await withRepositoryOperation(this.repositoryRoot, () =>
+      this.serialized(() => this.recoverUnlocked()),
+    );
   }
 
   private async serialized(operation: () => Promise<void>): Promise<void> {
@@ -100,6 +112,7 @@ export class RepositoryTransaction {
     const backupRoot = join(transactionRoot, 'backup');
     const manifestPath = join(transactionRoot, 'manifest.json');
     const manifest: TransactionManifest = { entries: [] };
+    let committed = false;
 
     try {
       await this.fileSystem.mkdir(stageRoot, { recursive: true });
@@ -111,28 +124,38 @@ export class RepositoryTransaction {
       await options.validate?.(writes);
       await this.options.fault?.('after-stage');
 
-      for (const write of targets) {
-        const existed = await pathExists(this.fileSystem, write.target);
-        manifest.entries.push({ path: write.path.replaceAll('\\', '/'), existed });
-        if (existed) {
-          const backupPath = join(backupRoot, write.path.replaceAll('\\', '/'));
-          await this.fileSystem.mkdir(dirname(backupPath), { recursive: true });
-          await this.fileSystem.rename(write.target, backupPath);
-        }
-      }
+      for (const write of targets)
+        manifest.entries.push({
+          path: write.path.replaceAll('\\', '/'),
+          existed: await pathExists(this.fileSystem, write.target),
+        });
       await this.fileSystem.writeFile(manifestPath, canonicalJson(manifest), 'utf8');
+      await this.options.fault?.('after-manifest');
+      for (const entry of manifest.entries) {
+        if (entry.existed) {
+          const backupPath = join(backupRoot, entry.path);
+          await this.fileSystem.mkdir(dirname(backupPath), { recursive: true });
+          await this.fileSystem.rename(join(this.repositoryRoot, entry.path), backupPath);
+        }
+        await this.options.fault?.('after-backup-file');
+      }
       await this.options.fault?.('after-backup');
 
       for (const write of targets) {
         const stagePath = join(stageRoot, write.path.replaceAll('\\', '/'));
         await this.fileSystem.mkdir(dirname(write.target), { recursive: true });
+        await this.options.fault?.('before-replace');
         await this.fileSystem.rename(stagePath, write.target);
         await this.options.fault?.('after-replace');
       }
-      await this.fileSystem.rm(transactionRoot, { recursive: true, force: true });
+      const committedRoot = `${transactionRoot}.committed`;
+      await this.fileSystem.rename(transactionRoot, committedRoot);
+      committed = true;
+      await this.options.fault?.('after-commit');
+      await this.fileSystem.rm(committedRoot, { recursive: true, force: true });
       await this.removeTransactionContainerIfEmpty();
     } catch (error) {
-      if (!this.options.preserveOnFailure) {
+      if (!this.options.preserveOnFailure && !committed) {
         await this.rollback(transactionRoot, manifest);
       }
       throw error;
@@ -140,22 +163,45 @@ export class RepositoryTransaction {
   }
 
   private async recoverUnlocked(): Promise<void> {
-    const container = join(
-      await this.fileSystem.realpath(this.repositoryRoot),
+    const container = await resolveRepositoryPath(
+      this.repositoryRoot,
       '.rmp-transactions',
+      this.fileSystem,
     );
     if (!(await pathExists(this.fileSystem, container))) return;
 
     for (const directory of await this.fileSystem.readdir(container)) {
-      const transactionRoot = join(container, directory);
-      const manifestPath = join(transactionRoot, 'manifest.json');
-      if (!(await pathExists(this.fileSystem, manifestPath))) {
+      const transactionRoot = await resolveRepositoryPath(
+        this.repositoryRoot,
+        `.rmp-transactions/${directory}`,
+        this.fileSystem,
+      );
+      const manifestPath = await resolveRepositoryPath(
+        this.repositoryRoot,
+        `.rmp-transactions/${directory}/manifest.json`,
+        this.fileSystem,
+      );
+      if (directory.endsWith('.committed') || !(await pathExists(this.fileSystem, manifestPath))) {
         await this.fileSystem.rm(transactionRoot, { recursive: true, force: true });
         continue;
       }
       const manifest = JSON.parse(
         await this.fileSystem.readFile(manifestPath, 'utf8'),
       ) as TransactionManifest;
+      if (!Array.isArray(manifest.entries)) throw new Error('Invalid recovery manifest');
+      for (const entry of manifest.entries) {
+        if (
+          typeof entry.path !== 'string' ||
+          typeof entry.existed !== 'boolean' ||
+          entry.path.startsWith('.rmp-transactions') ||
+          entry.path
+            .replaceAll('\\', '/')
+            .split('/')
+            .some((part) => part === '' || part === '.' || part === '..')
+        )
+          throw new Error('Invalid recovery manifest');
+        await resolveRepositoryPath(this.repositoryRoot, entry.path, this.fileSystem);
+      }
       await this.rollback(transactionRoot, manifest);
     }
     await this.removeTransactionContainerIfEmpty();
@@ -166,10 +212,12 @@ export class RepositoryTransaction {
     for (const entry of [...manifest.entries].reverse()) {
       const target = join(root, entry.path);
       const backup = join(transactionRoot, 'backup', entry.path);
-      if (await pathExists(this.fileSystem, target)) {
+      const hasBackup = await pathExists(this.fileSystem, backup);
+      // No backup means this original was never moved, or already restored.
+      if (entry.existed && !hasBackup) continue;
+      if (await pathExists(this.fileSystem, target))
         await this.fileSystem.rm(target, { recursive: true, force: true });
-      }
-      if (entry.existed && (await pathExists(this.fileSystem, backup))) {
+      if (hasBackup) {
         await this.fileSystem.mkdir(dirname(target), { recursive: true });
         await this.fileSystem.rename(backup, target);
       }

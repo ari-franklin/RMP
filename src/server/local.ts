@@ -1,3 +1,9 @@
+import { withRepositoryOperation } from '../storage/operation-lock.js';
+import {
+  readSourceHealth,
+  renderSourceNotice,
+  sourceHealthMessage,
+} from '../core/source-health.js';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { readFile } from 'node:fs/promises';
@@ -160,35 +166,54 @@ export async function saveRoadmapChanges(
   root: string,
   input: RoadmapSaveRequest,
 ): Promise<Roadmap> {
-  const roadmapPath = join(root, '.roadmap', 'roadmap.json');
-  const currentValue: unknown = JSON.parse(await readFile(roadmapPath, 'utf8'));
-  const current = validateRoadmap(currentValue);
-  if (!current.valid)
-    throw new Error(current.diagnostics[0]?.message ?? 'Current roadmap is invalid');
-  const updated = applySave(current.value, input);
-  const validated = validateRoadmap(updated);
-  if (!validated.valid)
-    throw new Error(validated.diagnostics[0]?.message ?? 'Updated roadmap is invalid');
-  const configText = await readFile(join(root, '.roadmap', 'config.json'), 'utf8').catch(
-    (error: unknown) => {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return '{}';
-      throw error;
-    },
-  );
-  const config = loadConfig(JSON.parse(configText) as unknown);
-  if (!config.valid) throw new Error('Invalid repository configuration');
-  await new RepositoryTransaction(root).commit([
-    { path: '.roadmap/roadmap.json', content: canonicalJson(validated.value) },
-    {
-      path: '.roadmap/roadmap.html',
-      content: renderHtml(validated.value, {
-        defaultView: config.config.views.default,
-        stateScope: resolve(root),
-      }),
-    },
-    { path: 'ROADMAP.md', content: renderMarkdown(validated.value) },
-  ]);
-  return validated.value;
+  return withRepositoryOperation(root, async () => {
+    await new RepositoryTransaction(root).recover();
+    const roadmapPath = join(root, '.roadmap', 'roadmap.json');
+    const currentValue: unknown = JSON.parse(await readFile(roadmapPath, 'utf8'));
+    const current = validateRoadmap(currentValue);
+    if (!current.valid)
+      throw new Error(current.diagnostics[0]?.message ?? 'Current roadmap is invalid');
+    const updated = applySave(current.value, input);
+    const validated = validateRoadmap(updated);
+    if (!validated.valid)
+      throw new Error(validated.diagnostics[0]?.message ?? 'Updated roadmap is invalid');
+    const configText = await readFile(join(root, '.roadmap', 'config.json'), 'utf8').catch(
+      (error: unknown) => {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return '{}';
+        throw error;
+      },
+    );
+    const config = loadConfig(JSON.parse(configText) as unknown);
+    if (!config.valid) throw new Error('Invalid repository configuration');
+    const health = readSourceHealth(
+      await readFile(join(root, '.roadmap/sources/notion-health.json'), 'utf8').catch(
+        (error: unknown) => {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+          throw error;
+        },
+      ),
+    );
+    await new RepositoryTransaction(root).commit([
+      { path: '.roadmap/roadmap.json', content: canonicalJson(validated.value) },
+      {
+        path: '.roadmap/roadmap.html',
+        content: renderSourceNotice(
+          renderHtml(validated.value, {
+            defaultView: config.config.views.default,
+            stateScope: resolve(root),
+          }),
+          health,
+        ),
+      },
+      {
+        path: 'ROADMAP.md',
+        content:
+          renderMarkdown(validated.value) +
+          (health ? `\n## Source freshness\n\n${sourceHealthMessage(health)}\n` : ''),
+      },
+    ]);
+    return validated.value;
+  });
 }
 
 export async function startLocalServer(
@@ -203,11 +228,15 @@ export async function startLocalServer(
   ): Promise<void> => {
     try {
       if (request.method === 'GET' && (request.url === '/' || request.url === '/roadmap.html')) {
+        const html = await withRepositoryOperation(options.root, async () => {
+          await new RepositoryTransaction(options.root).recover();
+          return readFile(htmlPath, 'utf8');
+        });
         response.writeHead(200, {
           'content-type': 'text/html; charset=utf-8',
           'cache-control': 'no-store',
         });
-        response.end(await readFile(htmlPath, 'utf8'));
+        response.end(html);
         return;
       }
       if (request.method === 'GET' && request.url === '/health') {

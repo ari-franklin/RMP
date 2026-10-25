@@ -1,3 +1,5 @@
+import { fixture, post, pid, iid, managed } from '../../helpers/notion-projection.js';
+import { contentId } from '../../../src/utils/ids.js';
 import { describe, expect, it } from 'vitest';
 
 import { applyTransition, validateConsistency } from '../../../src/core/index.js';
@@ -147,5 +149,97 @@ describe('validateConsistency', () => {
     expect(validateConsistency(roadmap(), [receipt, receipt])).toContainEqual(
       expect.objectContaining({ code: 'duplicate-receipt' }),
     );
+  });
+});
+
+describe('registered Notion mirror transitions', () => {
+  function request() {
+    const input = fixture([post(1, 'published')], { pageToItem: { [pid(1)]: iid(1) } });
+    input.roadmap.items = [managed(1)];
+    const observed = input.snapshot.posts[0];
+    if (!observed) throw new Error('Fixture missing');
+    return {
+      roadmap: input.roadmap,
+      itemId: iid(1),
+      newStatus: 'completed' as const,
+      evidence: [
+        {
+          id: `ev-${contentId('notion', observed)}`,
+          class: 'deterministic' as const,
+          source: 'notion',
+          sourceRef: `https://www.notion.so/${pid(1)}`,
+          observedAt: observed.lastEditedAt,
+          summary: 'Observed',
+          extensions: {},
+        },
+      ],
+      authorizingRule: 'notion:source-mirror:v1',
+      actor: 'notion',
+      timestamp: input.now,
+      config: input.config,
+      sourceMirror: {
+        policy: input.policy,
+        snapshot: input.snapshot,
+        health: input.health,
+        pageId: pid(1),
+      },
+    };
+  }
+  it('permits one direct publication receipt without fake active state', () => {
+    const result = applyTransition(request());
+    expect(result.receipt).toMatchObject({ previousStatus: 'proposed', newStatus: 'completed' });
+  });
+  it.each([
+    'mapping',
+    'source-owner',
+    'policy',
+    'approval',
+    'terminal',
+    'outcome',
+    'evidence',
+    'freshness',
+    'no-config',
+  ] as const)('rejects a %s bypass even through direct core calls', (bad) => {
+    const input = request();
+    const target = input.roadmap.items[0];
+    if (!target) throw new Error('Fixture missing');
+    if (bad === 'mapping') {
+      const p = input.sourceMirror.snapshot.posts[0];
+      if (!p) throw new Error('Fixture missing');
+      p.statusOptionId = 'idea';
+      input.sourceMirror.snapshot.contentHash = contentId(
+        'notion',
+        input.sourceMirror.snapshot.posts,
+      );
+      input.sourceMirror.policy.statusMapping.idea.roadmapStatus = 'completed';
+      input.roadmap.extensions['content/notion-workflow'] = structuredClone(
+        input.sourceMirror.policy,
+      ) as unknown as Record<string, unknown>;
+      input.evidence[0] = {
+        ...input.evidence[0],
+        id: `ev-${contentId('notion', p)}`,
+      } as (typeof input.evidence)[number];
+    }
+    if (bad === 'source-owner')
+      target.extensions['content/workflow'] = {
+        source: 'notion:writing-ideas',
+        dataSourceId: 'other-source',
+      };
+    if (bad === 'policy') delete input.roadmap.extensions['content/notion-workflow'];
+    if (bad === 'approval')
+      input.config.authority = { ...input.config.authority, deterministic: 'approval' };
+    if (bad === 'terminal') target.status = 'cancelled';
+    if (bad === 'outcome') target.kind = 'outcome';
+    if (bad === 'evidence')
+      input.evidence[0] = {
+        ...input.evidence[0],
+        id: 'ev-fake',
+      } as (typeof input.evidence)[number];
+    if (bad === 'freshness') Object.assign(input.sourceMirror.health, { state: 'stale' });
+    if (bad === 'no-config') {
+      const { config, ...withoutConfig } = input;
+      expect(config).toBeDefined();
+      expect(() => applyTransition(withoutConfig)).toThrow();
+    } else expect(() => applyTransition(input)).toThrow();
   });
 });

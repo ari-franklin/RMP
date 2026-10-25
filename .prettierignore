@@ -10,3 +10,6 @@ plans/**/*.md
 /.roadmap/roadmap.json
 /.roadmap/roadmap.html
 /ROADMAP.md
+
+# Installed agent skills are external tooling, not project source.
+/.agents/skills/

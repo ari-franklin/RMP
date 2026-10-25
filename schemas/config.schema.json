@@ -4,16 +4,28 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "schemaVersion": { "const": "1.0.0" },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
     "authority": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "deterministic": { "$ref": "#/$defs/disposition" },
-        "corroborated": { "$ref": "#/$defs/disposition" },
-        "observedOutcome": { "$ref": "#/$defs/disposition" },
-        "inferred": { "$ref": "#/$defs/disposition" },
-        "strategic": { "$ref": "#/$defs/disposition" }
+        "deterministic": {
+          "$ref": "#/$defs/disposition"
+        },
+        "corroborated": {
+          "$ref": "#/$defs/disposition"
+        },
+        "observedOutcome": {
+          "$ref": "#/$defs/disposition"
+        },
+        "inferred": {
+          "$ref": "#/$defs/disposition"
+        },
+        "strategic": {
+          "$ref": "#/$defs/disposition"
+        }
       }
     },
     "views": {
@@ -29,17 +41,95 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+        "enabled": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "notion": {
+          "$ref": "#/$defs/notion"
+        }
       }
     },
-    "extensions": { "$ref": "#/$defs/extensions" }
+    "extensions": {
+      "$ref": "#/$defs/extensions"
+    }
   },
   "$defs": {
-    "disposition": { "enum": ["automatic", "recommendation", "approval"] },
+    "disposition": {
+      "enum": ["automatic", "recommendation", "approval"]
+    },
     "extensions": {
       "type": "object",
-      "propertyNames": { "pattern": "^[a-z0-9][a-z0-9.-]*/[a-z0-9][a-z0-9.-]*$" },
-      "additionalProperties": { "type": "object" }
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9.-]*/[a-z0-9][a-z0-9.-]*$"
+      },
+      "additionalProperties": {
+        "type": "object"
+      }
+    },
+    "notion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataSourceId", "titlePropertyId", "statusPropertyId"],
+      "properties": {
+        "dataSourceId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "titlePropertyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "statusPropertyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "publishDatePropertyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "typePropertyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "blogPropertyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "seriesPropertyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "requestTimeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30000
+        },
+        "collectionTimeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120000
+        },
+        "maxPages": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "maxRetries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        }
+      }
     }
   }
 }

@@ -35,6 +35,107 @@
       "source": "Git commit",
       "sourceRef": "97552b9",
       "summary": "RMP now renders delivery as a horizontal output schedule and releases as an evidence-backed chronology, enabling its own post-MVP roadmap to use the protocol."
+    },
+    {
+      "class": "strategic",
+      "extensions": {},
+      "id": "ev-provider-sequencing-20261019",
+      "observedAt": "2026-10-19T21:59:14.491Z",
+      "source": "User-approved provider sequence and Notion implementation plan",
+      "sourceRef": "plans/003-notion-content-sync/plan.md",
+      "summary": "User selected Notion first for the existing Blogging workflow; GitHub follows for team release/deployment status. Provider work is planned, not implemented. Roadmap detail added at user request."
+    },
+    {
+      "class": "deterministic",
+      "extensions": {},
+      "id": "ev-notion-n1-implementation-20261020",
+      "observedAt": "2026-10-20T21:06:37.596Z",
+      "source": "Local implementation and tests",
+      "sourceRef": "plans/003-notion-content-sync/plan.md#n1-verification-completed--2026-10-20",
+      "summary": "Notion N1 source contracts and migration-preview implementation exist locally with behavioral tests."
+    },
+    {
+      "class": "deterministic",
+      "extensions": {},
+      "id": "ev-notion-n1-verified-20261020",
+      "observedAt": "2026-10-20T21:06:37.596Z",
+      "source": "Verified local quality gates",
+      "sourceRef": "plans/003-notion-content-sync/plan.md#n1-verification-completed--2026-10-20",
+      "summary": "N1 complete: 204 unit/integration tests, eight E2E tests, lint, format, types, build and global/new-module coverage gates pass. No live provider or Blogging migration performed."
+    },
+    {
+      "class": "deterministic",
+      "extensions": {},
+      "id": "ev-notion-n2-implementation-20261020",
+      "observedAt": "2026-10-20T21:45:06.252Z",
+      "source": "N2 implementation and verified local test results",
+      "sourceRef": "plans/003-notion-content-sync/plan.md#n2-verification-completed--2026-10-20",
+      "summary": "Read-only bounded Notion client and snapshot collection implemented locally with behavioral tests."
+    },
+    {
+      "class": "deterministic",
+      "extensions": {},
+      "id": "ev-notion-n2-verified-20261020",
+      "observedAt": "2026-10-20T21:45:06.252Z",
+      "source": "N2 implementation and verified local test results",
+      "sourceRef": "plans/003-notion-content-sync/plan.md#n2-verification-completed--2026-10-20",
+      "summary": "N2 verified: 259 tests, eight E2E, format/lint/types/build, global coverage and both new modules exceed all 80% gates. No live provider or Blogging cutover claimed."
+    },
+    {
+      "class": "deterministic",
+      "extensions": {
+        "rmp.dev/transition": {
+          "itemId": "mil-notion-n3",
+          "proposedStatus": "active"
+        }
+      },
+      "id": "ev-notion-n3-implementation-20261020",
+      "observedAt": "2026-10-20T22:16:46.394Z",
+      "source": "N3 implementation and verified local test results",
+      "sourceRef": "plans/003-notion-content-sync/plan.md#n3-verification-completed--2026-10-20",
+      "summary": "N3 pure editorial projection, source-mirror authority and append-only source audit are implemented locally."
+    },
+    {
+      "class": "deterministic",
+      "extensions": {
+        "rmp.dev/transition": {
+          "itemId": "mil-notion-n3",
+          "proposedStatus": "completed"
+        }
+      },
+      "id": "ev-notion-n3-verified-20261020",
+      "observedAt": "2026-10-20T22:16:46.394Z",
+      "source": "N3 implementation and verified local test results",
+      "sourceRef": "plans/003-notion-content-sync/plan.md#n3-verification-completed--2026-10-20",
+      "summary": "N3 verified: 298 tests, eight E2E tests, lint, format, types, build and all global/new-module coverage gates pass. Live refresh and Blogging cutover remain pending."
+    },
+    {
+      "class": "deterministic",
+      "extensions": {
+        "rmp.dev/transition": {
+          "itemId": "mil-notion-n4",
+          "proposedStatus": "active"
+        }
+      },
+      "id": "ev-notion-n4-implementation-20261020",
+      "observedAt": "2026-10-20T22:31:03.785Z",
+      "source": "N4 implementation and verified local test results",
+      "sourceRef": "plans/003-notion-content-sync/plan.md#n4-verification-completed--2026-10-20",
+      "summary": "N4 source-refresh orchestration, last-good fallback, process locks and transaction recovery are implemented locally."
+    },
+    {
+      "class": "deterministic",
+      "extensions": {
+        "rmp.dev/transition": {
+          "itemId": "mil-notion-n4",
+          "proposedStatus": "completed"
+        }
+      },
+      "id": "ev-notion-n4-verified-20261020",
+      "observedAt": "2026-10-20T22:31:03.785Z",
+      "source": "N4 implementation and verified local test results",
+      "sourceRef": "plans/003-notion-content-sync/plan.md#n4-verification-completed--2026-10-20",
+      "summary": "N4 verified: 333 tests, eight E2E tests, lint, format, types, build and global/new-module coverage gates pass. Blogging presentation, live pilot and security controls remain separate phases."
     }
   ],
   "extensions": {
@@ -49,11 +150,10 @@
         "Provider writeback remains blocked until connected evidence and verifiable history are proven."
       ],
       "nextActions": [
-        "Choose the Phase 6 reference provider and validate authentication, pagination, retry, and provenance.",
+        "Continue with N5 Blogging presentation and view entry points; NS security controls remain independent. N6 validates the authenticated pilot before GitHub release/deployment work.",
         "Define status vocabulary, visual treatment, filters, and valid transitions for every roadmap view."
       ],
       "openQuestions": [
-        "Which provider should be the Phase 6 reference connector?",
         "Which collaboration jobs genuinely require a hosted service?"
       ],
       "risks": [
@@ -73,7 +173,7 @@
     {
       "commitment": "planned",
       "confidence": "medium",
-      "description": "Teams can see live evidence and portfolio context without replacing repository-owned canonical roadmaps. Also tie in Delivery items to each outcome or vice versa so that thread is easy to trace.",
+      "description": "Keep roadmap evidence current across tools and repositories without manual corrections. Now: Notion Blogging workflow with a two-post Now queue and safe refresh. Later: GitHub team release/deployment status. Delivery milestones track the work; provider delivery does not by itself prove outcome success.",
       "extensions": {
         "rmp/strategy": {
           "anchor": "Connect roadmap evidence without creating a second source of truth"
@@ -94,7 +194,7 @@
     {
       "commitment": "planned",
       "confidence": "medium",
-      "description": "",
+      "description": "Teams can review, propose, and coordinate roadmap changes across people and agents without creating divergent state, bypassing approvals, or losing provenance.",
       "extensions": {
         "rmp/strategy": {
           "anchor": "Scale collaboration while preserving verifiable roadmap history"
@@ -169,8 +269,16 @@
     {
       "commitment": "planned",
       "confidence": "medium",
-      "description": "Connect GitHub, GitLab, Jira, Linear, deployment, and analytics evidence through the provider-neutral adapter contract, beginning with one reference provider.",
+      "description": "Provider program: first prove Blogging’s Notion workflow, then scope GitHub release/deployment tracking for the team. Separate provider delivery items expose their milestones; no provider implementation is complete.",
       "extensions": {
+        "rmp/implementation": {
+          "buildGate": "Notion MVP planned; GitHub team release/deployment connector remains a later scoped implementation.",
+          "decisionSource": "User-confirmed Notion MVP and GitHub team release/deployment scope, 2026-10-19",
+          "githubCandidatePlan": "plans/002-github-provider-sync/plan.md",
+          "plan": "plans/003-notion-content-sync/plan.md",
+          "referenceProvider": "notion",
+          "scope": "Read-only Blogging Posts workflow, refresh on view/sync, max-two Now queue, stale-data fallback."
+        },
         "rmp/phase": {
           "number": 6,
           "validationQuestion": "Can RMP synchronize one live provider without storing credentials or weakening offline operation?"
@@ -180,7 +288,7 @@
       "id": "del-phase-06-provider-sync",
       "kind": "deliverable",
       "status": "active",
-      "title": "Phase 6: Live provider authentication and synchronization"
+      "title": "Phase 6: Connected evidence — Notion first, GitHub follows"
     },
     {
       "commitment": "planned",
@@ -195,7 +303,7 @@
       "id": "mil-phase-06-reference-connector",
       "kind": "milestone",
       "status": "proposed",
-      "title": "One authenticated provider passes pagination, retry, and provenance gates"
+      "title": "Notion reference connector passes live reliability and provenance gates"
     },
     {
       "commitment": "planned",
@@ -489,6 +597,244 @@
       },
       "status": "proposed",
       "title": "Roadmap outcomes can launch their next delivery workflow"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "N1–N4 verified locally: migration preview, bounded source collection, editorial projection and safe refresh with stale fallback. Next: N5 Blogging presentation; authenticated cutover remains pending.",
+      "extensions": {
+        "rmp/implementation": {
+          "evidenceIds": [
+            "ev-provider-sequencing-20261019"
+          ],
+          "phases": [
+            "N1",
+            "N2",
+            "N3",
+            "N4",
+            "N5",
+            "NS",
+            "N6"
+          ],
+          "plan": "plans/003-notion-content-sync/plan.md"
+        }
+      },
+      "horizon": "now",
+      "id": "del-notion-content-sync",
+      "kind": "deliverable",
+      "status": "active",
+      "title": "Notion MVP: Keep Blogging’s editorial roadmap current"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Validate source contracts and show migration changes before cutover.",
+      "extensions": {
+        "rmp/implementation": {
+          "evidenceIds": [
+            "ev-provider-sequencing-20261019"
+          ],
+          "phases": [
+            "N1"
+          ],
+          "plan": "plans/003-notion-content-sync/plan.md"
+        }
+      },
+      "horizon": "now",
+      "id": "mil-notion-n1",
+      "kind": "milestone",
+      "status": "completed",
+      "title": "N1: Preview migration without losing post IDs or curation"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Bound pagination, retries and timeouts; validate source schema and keep credentials out of artifacts.",
+      "extensions": {
+        "rmp/implementation": {
+          "evidenceIds": [
+            "ev-provider-sequencing-20261019"
+          ],
+          "phases": [
+            "N2"
+          ],
+          "plan": "plans/003-notion-content-sync/plan.md"
+        }
+      },
+      "horizon": "next",
+      "id": "mil-notion-n2",
+      "kind": "milestone",
+      "status": "completed",
+      "title": "N2: Read complete Notion snapshots securely"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Apply stable post identity, status mapping, provenance and append-only history without claiming outcome success.",
+      "extensions": {
+        "rmp/implementation": {
+          "evidenceIds": [
+            "ev-provider-sequencing-20261019"
+          ],
+          "phases": [
+            "N3"
+          ],
+          "plan": "plans/003-notion-content-sync/plan.md"
+        }
+      },
+      "horizon": "next",
+      "id": "mil-notion-n3",
+      "kind": "milestone",
+      "status": "completed",
+      "title": "N3: Map editorial statuses and preserve the two-post Now queue"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Commit complete updates with conflict protection; failed refreshes retain accepted source data.",
+      "extensions": {
+        "rmp/implementation": {
+          "evidenceIds": [
+            "ev-provider-sequencing-20261019"
+          ],
+          "phases": [
+            "N4"
+          ],
+          "plan": "plans/003-notion-content-sync/plan.md"
+        }
+      },
+      "horizon": "next",
+      "id": "mil-notion-n4",
+      "kind": "milestone",
+      "status": "completed",
+      "title": "N4: Refresh safely with last-good data and stale notices"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Integrate the trusted view/sync wrapper and preserve Themes, Posts, Published, filters and curation.",
+      "extensions": {
+        "rmp/implementation": {
+          "evidenceIds": [
+            "ev-provider-sequencing-20261019"
+          ],
+          "phases": [
+            "N5"
+          ],
+          "plan": "plans/003-notion-content-sync/plan.md"
+        }
+      },
+      "horizon": "next",
+      "id": "mil-notion-n5",
+      "kind": "milestone",
+      "status": "proposed",
+      "title": "N5: Preserve Blogging views on every sync and save"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Security and vulnerability management run alongside implementation; new modules meet all coverage gates.",
+      "extensions": {
+        "rmp/implementation": {
+          "evidenceIds": [
+            "ev-provider-sequencing-20261019"
+          ],
+          "phases": [
+            "NS"
+          ],
+          "plan": "plans/003-notion-content-sync/plan.md"
+        }
+      },
+      "horizon": "next",
+      "id": "mil-notion-ns",
+      "kind": "milestone",
+      "status": "proposed",
+      "title": "NS: Verify credential safety and ongoing dependency checks"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "medium",
+      "description": "Authenticated pilot matches reviewed live rows with no manual copying or false transitions.",
+      "extensions": {
+        "rmp/implementation": {
+          "evidenceIds": [
+            "ev-provider-sequencing-20261019"
+          ],
+          "phases": [
+            "N6"
+          ],
+          "plan": "plans/003-notion-content-sync/plan.md"
+        }
+      },
+      "horizon": "next",
+      "id": "mil-notion-n6",
+      "kind": "milestone",
+      "status": "proposed",
+      "title": "N6: Validate the live Blogging workflow before cutover"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "low",
+      "description": "Follow the Notion pilot with a team-focused connector. Re-scope the earlier PR/issue candidate plan around release and deployment evidence before implementation. No team pilot has been selected.",
+      "extensions": {
+        "rmp/implementation": {
+          "evidenceIds": [
+            "ev-provider-sequencing-20261019"
+          ],
+          "phases": [
+            "scope",
+            "pilot"
+          ],
+          "plan": "plans/002-github-provider-sync/plan.md"
+        }
+      },
+      "horizon": "later",
+      "id": "del-github-release-deployment-sync",
+      "kind": "deliverable",
+      "status": "proposed",
+      "title": "GitHub: Keep team release and deployment status current"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "low",
+      "description": "Agree supported evidence, source authority, release/environment identity and acceptance criteria; replace the earlier PR-first scope.",
+      "extensions": {
+        "rmp/implementation": {
+          "evidenceIds": [
+            "ev-provider-sequencing-20261019"
+          ],
+          "phases": [
+            "scope"
+          ],
+          "plan": "plans/002-github-provider-sync/plan.md"
+        }
+      },
+      "horizon": "later",
+      "id": "mil-github-release-scope",
+      "kind": "milestone",
+      "status": "proposed",
+      "title": "GitHub: Define release/deployment mapping and select a team pilot"
+    },
+    {
+      "commitment": "planned",
+      "confidence": "low",
+      "description": "Demonstrate current release/deployment status with provenance and failure handling; implementation details remain to be planned.",
+      "extensions": {
+        "rmp/implementation": {
+          "evidenceIds": [
+            "ev-provider-sequencing-20261019"
+          ],
+          "phases": [
+            "pilot"
+          ],
+          "plan": "plans/002-github-provider-sync/plan.md"
+        }
+      },
+      "horizon": "later",
+      "id": "mil-github-release-pilot",
+      "kind": "milestone",
+      "status": "proposed",
+      "title": "GitHub: Validate live release/deployment evidence in a team repository"
     }
   ],
   "recommendations": [],
@@ -631,9 +977,116 @@
       "from": "rel-phase-10-bidirectional-sync",
       "to": "mil-phase-10-safe-writeback",
       "type": "dependsOn"
+    },
+    {
+      "from": "mil-notion-n1",
+      "to": "del-notion-content-sync",
+      "type": "delivers"
+    },
+    {
+      "from": "mil-notion-n2",
+      "to": "del-notion-content-sync",
+      "type": "delivers"
+    },
+    {
+      "from": "mil-notion-n3",
+      "to": "del-notion-content-sync",
+      "type": "delivers"
+    },
+    {
+      "from": "mil-notion-n4",
+      "to": "del-notion-content-sync",
+      "type": "delivers"
+    },
+    {
+      "from": "mil-notion-n5",
+      "to": "del-notion-content-sync",
+      "type": "delivers"
+    },
+    {
+      "from": "mil-notion-ns",
+      "to": "del-notion-content-sync",
+      "type": "delivers"
+    },
+    {
+      "from": "mil-notion-n6",
+      "to": "del-notion-content-sync",
+      "type": "delivers"
+    },
+    {
+      "from": "mil-notion-n2",
+      "to": "mil-notion-n1",
+      "type": "dependsOn"
+    },
+    {
+      "from": "mil-notion-n3",
+      "to": "mil-notion-n1",
+      "type": "dependsOn"
+    },
+    {
+      "from": "mil-notion-ns",
+      "to": "mil-notion-n1",
+      "type": "dependsOn"
+    },
+    {
+      "from": "mil-notion-n4",
+      "to": "mil-notion-n2",
+      "type": "dependsOn"
+    },
+    {
+      "from": "mil-notion-n4",
+      "to": "mil-notion-n3",
+      "type": "dependsOn"
+    },
+    {
+      "from": "mil-notion-n5",
+      "to": "mil-notion-n4",
+      "type": "dependsOn"
+    },
+    {
+      "from": "mil-notion-n6",
+      "to": "mil-notion-n5",
+      "type": "dependsOn"
+    },
+    {
+      "from": "mil-notion-n6",
+      "to": "mil-notion-ns",
+      "type": "dependsOn"
+    },
+    {
+      "from": "mil-github-release-scope",
+      "to": "del-github-release-deployment-sync",
+      "type": "delivers"
+    },
+    {
+      "from": "mil-github-release-pilot",
+      "to": "del-github-release-deployment-sync",
+      "type": "delivers"
+    },
+    {
+      "from": "mil-github-release-pilot",
+      "to": "mil-github-release-scope",
+      "type": "dependsOn"
+    },
+    {
+      "expectedImpact": "Current provider evidence reduces manual roadmap corrections.",
+      "from": "del-notion-content-sync",
+      "to": "out-connected-roadmap-evidence",
+      "type": "supports"
+    },
+    {
+      "expectedImpact": "Current provider evidence reduces manual roadmap corrections.",
+      "from": "del-github-release-deployment-sync",
+      "to": "out-connected-roadmap-evidence",
+      "type": "supports"
+    },
+    {
+      "from": "mil-phase-06-reference-connector",
+      "to": "mil-notion-n6",
+      "type": "dependsOn"
     }
   ],
-  "revision": 8,
+  "revision": 23,
   "schemaVersion": "1.0.0",
   "title": "RMP Roadmap"
 }

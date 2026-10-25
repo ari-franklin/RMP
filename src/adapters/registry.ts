@@ -33,6 +33,7 @@ export class AdapterRegistry {
     context: AdapterCollectionContext,
     cursors: Record<string, AdapterCursor | undefined> = {},
   ): Promise<RegistryCollection> {
+    const sources: NonNullable<RegistryCollection['sources']> = [];
     const evidence: NormalizedEvidence[] = [];
     const diagnostics: AdapterDiagnostic[] = [];
     const nextCursors: Record<string, AdapterCursor | undefined> = {};
@@ -41,6 +42,7 @@ export class AdapterRegistry {
       try {
         const result = await adapter.collect(context, cursors[adapter.identity.provider]);
         evidence.push(...result.evidence);
+        if (result.source) sources.push(result.source);
         diagnostics.push(...result.diagnostics);
         nextCursors[adapter.identity.provider] = result.cursor;
       } catch (error) {
@@ -52,6 +54,11 @@ export class AdapterRegistry {
       }
     }
 
-    return { evidence: deduplicateEvidence(evidence), diagnostics, cursors: nextCursors };
+    return {
+      evidence: deduplicateEvidence(evidence),
+      diagnostics,
+      cursors: nextCursors,
+      ...(sources.length ? { sources } : {}),
+    };
   }
 }
