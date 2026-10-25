@@ -799,3 +799,13 @@ Synthetic browser tests passed, but they do not substitute for the plan's actual
 Blogging visual inspection. N5 remains active until that inspection is completed;
 this is not a claim of N6 live cutover or outcome success. N5 code can be committed
 and pushed under the user's explicit instruction, with this limitation recorded.
+
+
+### CI follow-up — 2026-10-25
+
+The first push passed both Node versions on macOS and Linux. Windows exposed an N4
+test-helper portability issue: snapshot map keys used platform separators, while
+assertions used repository-relative forward-slash paths. The helper now constructs
+portable keys with `posix.join` and uses native `join` only for disk reads. This also
+prevents false equality between two missing entries in Windows stale-state checks.
+Production synchronization behavior is unchanged. Fresh CI is required after this fix.

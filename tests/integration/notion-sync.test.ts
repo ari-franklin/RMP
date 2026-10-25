@@ -1,7 +1,7 @@
 import { saveRoadmapChanges } from '../../src/server/local.js';
 import { mkdir, mkdtemp, readFile, writeFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { runSync } from '../../src/core/run-sync.js';
 import { fixture as projection } from '../helpers/notion-projection.js';
@@ -40,7 +40,7 @@ async function files(root: string) {
   const all: Record<string, string> = {};
   async function walk(dir: string) {
     for (const entry of await readdir(join(root, dir), { withFileTypes: true })) {
-      const path = join(dir, entry.name);
+      const path = posix.join(dir, entry.name);
       if (entry.isDirectory()) await walk(path);
       else all[path] = await readFile(join(root, path), 'utf8');
     }
