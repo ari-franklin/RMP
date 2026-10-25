@@ -41,6 +41,10 @@ function child(root: string, code: string) {
   });
   return { processChild, done };
 }
+// Keep ownership until the parent explicitly releases it; elapsed wall time is
+// not a synchronization signal on loaded CI runners.
+const heldOwnerCode = `await withRepositoryOperation(root,async()=>{console.log('locked');while(true){try{await readFile(root+'/release');break;}catch(error){if(error.code!=='ENOENT')throw error;}await new Promise(r=>setTimeout(r,10));}});`;
+
 describe('repository operation lock', () => {
   it('serializes read-modify-write operations across real processes', async () => {
     const root = await mkdtemp(join(tmpdir(), 'rmp-process-lock-'));
@@ -51,19 +55,20 @@ describe('repository operation lock', () => {
   });
   it('times out rather than stealing a live owner, then releases after errors', async () => {
     const root = await mkdtemp(join(tmpdir(), 'rmp-live-lock-'));
-    const owner = child(
-      root,
-      `await withRepositoryOperation(root,async()=>{console.log('locked');await new Promise(r=>setTimeout(r,400));});`,
-    );
+    const owner = child(root, heldOwnerCode);
     await new Promise<void>((r) =>
       owner.processChild.stdout.once('data', () => {
         r();
       }),
     );
-    await expect(
-      withRepositoryOperation(root, () => Promise.resolve(), { timeoutMs: 40 }),
-    ).rejects.toThrow(/lock.*retry/i);
-    await owner.done;
+    try {
+      await expect(
+        withRepositoryOperation(root, () => Promise.resolve(), { timeoutMs: 40 }),
+      ).rejects.toThrow(/lock.*retry/i);
+    } finally {
+      await writeFile(join(root, 'release'), 'release');
+      await owner.done;
+    }
     await expect(
       withRepositoryOperation(root, () => Promise.reject(new Error('operation failed'))),
     ).rejects.toThrow('operation failed');
@@ -143,20 +148,21 @@ it('does not reuse inherited lock authority after the owning operation has ended
     resume = AsyncLocalStorage.snapshot();
     return Promise.resolve();
   });
-  const owner = child(
-    root,
-    `await withRepositoryOperation(root,async()=>{console.log('locked');await new Promise(r=>setTimeout(r,250));});`,
-  );
+  const owner = child(root, heldOwnerCode);
   await new Promise<void>((r) => {
     owner.processChild.stdout.once('data', () => {
       r();
     });
   });
-  if (!resume) throw new Error('Missing captured context');
-  await expect(
-    resume(() => withRepositoryOperation(root, () => Promise.resolve(), { timeoutMs: 30 })),
-  ).rejects.toThrow(/lock.*retry/i);
-  await owner.done;
+  try {
+    if (!resume) throw new Error('Missing captured context');
+    await expect(
+      resume(() => withRepositoryOperation(root, () => Promise.resolve(), { timeoutMs: 30 })),
+    ).rejects.toThrow(/lock.*retry/i);
+  } finally {
+    await writeFile(join(root, 'release'), 'release');
+    await owner.done;
+  }
 });
 
 it.each(['malformed', 'foreign'] as const)(

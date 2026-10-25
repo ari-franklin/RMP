@@ -809,3 +809,11 @@ assertions used repository-relative forward-slash paths. The helper now construc
 portable keys with `posix.join` and uses native `join` only for disk reads. This also
 prevents false equality between two missing entries in Windows stale-state checks.
 Production synchronization behavior is unchanged. Fresh CI is required after this fix.
+
+
+A second CI run exposed a timing-sensitive N4 lock test on Windows/Node 20:
+the test owner released itself after 400 ms before the loaded runner began the
+contender's timeout check. Both live-owner tests now hold ownership until an
+explicit parent release signal, released in `finally`. They still verify rejection
+while the owner is alive, without relying on machine speed. No lock implementation
+change was needed.
