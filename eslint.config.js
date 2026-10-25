@@ -13,4 +13,5 @@ export default tseslint.config(
       },
     },
   },
+  { files: ['templates/*.mjs'], ...tseslint.configs.disableTypeChecked },
 );

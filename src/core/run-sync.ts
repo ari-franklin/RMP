@@ -25,7 +25,10 @@ import { canonicalJson, canonicalJsonLine } from '../utils/json.js';
 import { reconcile } from './reconcile.js';
 import { validateConsistency } from './validate-consistency.js';
 
+import type { HtmlTransform } from '../renderers/html.js';
+
 export type SyncMode = 'collect' | 'reconcile' | 'render' | 'sync';
+
 export type RenderFormat = 'all' | 'markdown' | 'html';
 
 export interface RunSyncOptions {
@@ -42,6 +45,7 @@ export interface RunSyncOptions {
   adapters?: Adapter[];
   now?: string;
   renderHtml?: typeof defaultRenderHtml;
+  transformHtml?: HtmlTransform;
 }
 
 export interface RunSyncResult {
@@ -357,12 +361,15 @@ export async function runSync(options: RunSyncOptions): Promise<RunSyncResult> {
         writes.push({
           path: '.roadmap/roadmap.html',
           content: renderSourceNotice(
-            options.renderHtml
-              ? options.renderHtml(reconciled.roadmap)
-              : defaultRenderHtml(reconciled.roadmap, {
-                  defaultView: current.config.views.default,
-                  stateScope: resolve(options.root),
-                }),
+            (options.transformHtml ?? ((html) => html))(
+              options.renderHtml
+                ? options.renderHtml(reconciled.roadmap)
+                : defaultRenderHtml(reconciled.roadmap, {
+                    defaultView: current.config.views.default,
+                    stateScope: resolve(options.root),
+                  }),
+              reconciled.roadmap,
+            ),
             sourceHealth,
           ),
         });

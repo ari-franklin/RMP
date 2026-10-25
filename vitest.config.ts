@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
     coverage: {
-      include: ['src/**/*.ts'],
+      include: ['src/**/*.ts', 'templates/*.mjs'],
       provider: 'v8',
       thresholds: {
         branches: 80,

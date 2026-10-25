@@ -11,7 +11,7 @@ import { join, resolve } from 'node:path';
 
 import { loadConfig } from '../config/index.js';
 
-import { renderHtml, renderMarkdown } from '../renderers/index.js';
+import { type HtmlTransform, renderHtml, renderMarkdown } from '../renderers/index.js';
 import { validateRoadmap } from '../schemas/index.js';
 import { RepositoryTransaction } from '../storage/index.js';
 import type { Roadmap } from '../types/index.js';
@@ -21,6 +21,9 @@ export interface LocalServerOptions {
   root: string;
   port?: number;
   host?: string;
+  transformHtml?: HtmlTransform;
+  /** Refresh once before listening and on explicit POST /api/refresh only. */
+  refresh?: () => Promise<unknown>;
 }
 
 interface SaveRequest {
@@ -165,6 +168,7 @@ function applySave(roadmap: Roadmap, input: SaveRequest): Roadmap {
 export async function saveRoadmapChanges(
   root: string,
   input: RoadmapSaveRequest,
+  options: { transformHtml?: HtmlTransform } = {},
 ): Promise<Roadmap> {
   return withRepositoryOperation(root, async () => {
     await new RepositoryTransaction(root).recover();
@@ -198,10 +202,13 @@ export async function saveRoadmapChanges(
       {
         path: '.roadmap/roadmap.html',
         content: renderSourceNotice(
-          renderHtml(validated.value, {
-            defaultView: config.config.views.default,
-            stateScope: resolve(root),
-          }),
+          (options.transformHtml ?? ((html) => html))(
+            renderHtml(validated.value, {
+              defaultView: config.config.views.default,
+              stateScope: resolve(root),
+            }),
+            validated.value,
+          ),
           health,
         ),
       },
@@ -219,6 +226,7 @@ export async function saveRoadmapChanges(
 export async function startLocalServer(
   options: LocalServerOptions,
 ): Promise<{ url: string; close: () => Promise<void> }> {
+  await options.refresh?.();
   const host = options.host ?? '127.0.0.1';
   const port = options.port ?? 4177;
   const htmlPath = join(options.root, '.roadmap', 'roadmap.html');
@@ -236,10 +244,29 @@ export async function startLocalServer(
           'content-type': 'text/html; charset=utf-8',
           'cache-control': 'no-store',
         });
-        response.end(html);
+        response.end(
+          options.refresh
+            ? html.replace(
+                '<body>',
+                '<body><button id="refresh-source" type="button">Refresh source</button><script>document.getElementById("refresh-source").addEventListener("click", async function () { this.disabled = true; this.textContent = "Refreshing…"; try { const response = await fetch("/api/refresh", { method: "POST" }); if (!response.ok) throw new Error(); location.reload(); } catch { this.disabled = false; this.textContent = "Refresh failed — try again"; } });</script>',
+              )
+            : html,
+        );
         return;
       }
       if (request.method === 'GET' && request.url === '/health') {
+        respond(response, 200, { ok: true });
+        return;
+      }
+      if (request.method === 'POST') {
+        const origin = request.headers.origin;
+        if (origin && origin !== `http://${request.headers.host ?? ''}`) {
+          respond(response, 403, { error: 'Cross-origin writes are not allowed' });
+          return;
+        }
+      }
+      if (request.method === 'POST' && request.url === '/api/refresh' && options.refresh) {
+        await options.refresh();
         respond(response, 200, { ok: true });
         return;
       }
@@ -247,6 +274,7 @@ export async function startLocalServer(
         const updated = await saveRoadmapChanges(
           options.root,
           (await readBody(request)) as SaveRequest,
+          options,
         );
         respond(response, 200, { ok: true, revision: updated.revision });
         return;

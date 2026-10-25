@@ -4,6 +4,9 @@ import type { RoadmapFormat } from '../formats/index.js';
 import type { Roadmap, RoadmapItem } from '../types/index.js';
 import { buildRoadmapViewModel, type ProjectedItem, type RoadmapProjection } from './view-model.js';
 
+/** Trusted application code only; never loaded from repository configuration. */
+export type HtmlTransform = (html: string, roadmap: Roadmap) => string;
+
 export interface HtmlRenderOptions {
   stateScope?: string;
   audience?: string;
@@ -421,7 +424,7 @@ function script(revision: number, stateScope?: string): string {
     saveStatus.textContent = changed ? 'Unsaved changes' : '';
   };
   const showTab = (id, focus = false) => {
-    if (!panels.some((panel) => panel.id === id)) id = 'view-overview';
+    if (!tabs.some((tab) => tab.getAttribute('aria-controls') === id)) id = tabs[0]?.getAttribute('aria-controls');
     tabs.forEach((tab) => { const active = tab.getAttribute('aria-controls') === id; tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1; if (active && focus) tab.focus(); });
     panels.forEach((panel) => { panel.hidden = panel.id !== id; });
     const state = readState(); state.tab = id; writeState(state);

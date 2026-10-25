@@ -2,7 +2,7 @@
 
 > **For Claude:** Execute this plan using `/superbuild` skill.
 > Date: 2026-10-19
-> Status: N1–N4 complete locally; N5–N6 and NS not started
+> Status: N1–N4 complete; N5 implemented and automated checks passed, actual-file visual acceptance pending; N6 and NS not started
 
 RMP-Item: del-notion-content-sync
 
@@ -303,7 +303,7 @@ invoke wrapper view/sync before opening .roadmap/roadmap.html. No scheduled task
 | N2 | Bounded Notion reader | N1 | N3, NS | 8 | Complete |
 | N3 | Pure source workflow projection and audit | N1 | N2, NS | 8 | Complete |
 | N4 | Transactional refresh and freshness handling | N2, N3 | NS | 8 | Complete |
-| N5 | Presentation-preserving Blogging integration | N4 | NS | 5 | Not started |
+| N5 | Presentation-preserving Blogging integration | N4 | NS | 5 | Implemented; visual acceptance pending |
 | NS | Ongoing security and dependency controls | MVP baseline | N1–N5 | 5 | Not started |
 | N6 | Live pilot, operator guide and cutover | N5, NS | None | 5 | Not started |
 
@@ -520,7 +520,7 @@ Official sources consulted 2026-10-19:
 
 ## Handoff
 
-N1–N4 are verified complete locally. Next is N5; NS can run
+N1–N4 are verified complete. N5 code and automated verification are done; actual Blogging visual acceptance remains pending. NS can run
 independently. No credentials, live Notion calls, new recurring automation or source
 workflow changes were performed during this planning task. The separate settings
 rollout is already applied and browser-verified in Blogging.
@@ -763,3 +763,39 @@ server. Existing NO_COLOR/FORCE_COLOR warnings are unchanged.
 
 No live Notion request, Blogging file change, Git staging, commit or push was performed.
 Suggested commit: `feat(sync): add transactional source refresh and stale fallback`.
+
+
+## N5 verification — 2026-10-25
+
+Implemented the trusted `transformHtml` callback on sync/render and save, with source
+health inserted after transformation and all writes protected by the existing
+transaction. Local serving refreshes once before listening, then on explicit refresh;
+page/asset requests and saves do not refetch. Cross-origin POST requests are rejected.
+
+Extracted the existing Blogging presentation into the portable
+`templates/content-calendar.mjs` and orchestration into `templates/content-sync.mjs`
+so these reusable files are committed and shipped with RMP. Blogging's local
+`.roadmap/sync.mjs` imports the built sibling RMP; its legacy presentation command
+re-exports the pure transform. Original script and instructions are backed up under
+Blogging's `.roadmap/legacy-n5/`. Updated Blogging maintenance instructions only after
+synthetic parity checks passed. No live migration, credentials, or publication writes.
+
+Behavioral RED verified missing transformation, missing startup refresh, partial
+render failure handling, unrelated completed milestones in Published, and hidden-tab
+preference recovery. GREEN: 345 tests in 39 files and nine browser tests; lint,
+format, types and build pass. Coverage S/B/F/L: 92.64/87.77/91.15/94.17 percent.
+New calendar template: 96.73/89.20/98.33/96.77; sync template: 100/94.11/100/100.
+Coverage now includes the portable templates. No dependencies added.
+
+Actual Blogging HTML passed read-only structural checks for all three tabs,
+analytics, hidden panels, explicit-publication count, offline notice above tabs,
+and no static refresh action. Its legacy Notion configuration is not migrated;
+normal sync reports uninitialized/schema, and intentional offline mode reports
+that no refresh was attempted while preserving all 120 local items.
+
+**Outstanding acceptance:** browser security policy rejected opening the actual
+Blogging local HTML URL. No alternate-browser/server workaround was attempted.
+Synthetic browser tests passed, but they do not substitute for the plan's actual
+Blogging visual inspection. N5 remains active until that inspection is completed;
+this is not a claim of N6 live cutover or outcome success. N5 code can be committed
+and pushed under the user's explicit instruction, with this limitation recorded.

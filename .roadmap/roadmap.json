@@ -136,6 +136,20 @@
       "source": "N4 implementation and verified local test results",
       "sourceRef": "plans/003-notion-content-sync/plan.md#n4-verification-completed--2026-10-20",
       "summary": "N4 verified: 333 tests, eight E2E tests, lint, format, types, build and global/new-module coverage gates pass. Blogging presentation, live pilot and security controls remain separate phases."
+    },
+    {
+      "class": "deterministic",
+      "extensions": {
+        "rmp.dev/transition": {
+          "itemId": "mil-notion-n5",
+          "proposedStatus": "active"
+        }
+      },
+      "id": "ev-notion-n5-implementation-20261025",
+      "observedAt": "2026-10-25T15:49:40.560Z",
+      "source": "Local implementation and verified automated tests",
+      "sourceRef": "plans/003-notion-content-sync/plan.md#n5-verification--2026-10-25",
+      "summary": "N5 presentation pipeline and Blogging wrapper implemented; 345 tests, nine E2E and code/coverage gates pass. Actual Blogging visual acceptance blocked by browser URL policy; live migration remains pending."
     }
   ],
   "extensions": {
@@ -150,7 +164,7 @@
         "Provider writeback remains blocked until connected evidence and verifiable history are proven."
       ],
       "nextActions": [
-        "Continue with N5 Blogging presentation and view entry points; NS security controls remain independent. N6 validates the authenticated pilot before GitHub release/deployment work.",
+        "Finish N5 actual Blogging visual acceptance. NS security controls follow, then N6 authenticated pilot before GitHub release/deployment integration.",
         "Define status vocabulary, visual treatment, filters, and valid transitions for every roadmap view."
       ],
       "openQuestions": [
@@ -601,7 +615,7 @@
     {
       "commitment": "planned",
       "confidence": "medium",
-      "description": "N1–N4 verified locally: migration preview, bounded source collection, editorial projection and safe refresh with stale fallback. Next: N5 Blogging presentation; authenticated cutover remains pending.",
+      "description": "N1–N4 complete. N5 implemented and automated checks pass; actual Blogging visual acceptance pending. NS security controls and N6 authenticated pilot remain.",
       "extensions": {
         "rmp/implementation": {
           "evidenceIds": [
@@ -712,7 +726,7 @@
     {
       "commitment": "planned",
       "confidence": "medium",
-      "description": "Integrate the trusted view/sync wrapper and preserve Themes, Posts, Published, filters and curation.",
+      "description": "Presentation-preserving sync/render/save and Blogging wrapper implemented and automatically verified. Actual Blogging visual acceptance pending because browser policy blocked local-file inspection.",
       "extensions": {
         "rmp/implementation": {
           "evidenceIds": [
@@ -727,7 +741,7 @@
       "horizon": "next",
       "id": "mil-notion-n5",
       "kind": "milestone",
-      "status": "proposed",
+      "status": "active",
       "title": "N5: Preserve Blogging views on every sync and save"
     },
     {
@@ -1086,7 +1100,7 @@
       "type": "dependsOn"
     }
   ],
-  "revision": 23,
+  "revision": 24,
   "schemaVersion": "1.0.0",
   "title": "RMP Roadmap"
 }
